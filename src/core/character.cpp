@@ -55,7 +55,7 @@ void Character::tick() {
             _state = CHAR_IDLE;
         }
     }
-    if (_message[0] && (millis() - _msgTime > 600)) {
+    if (_message[0] && (millis() - _msgTime > 1200)) {
         _message[0] = '\0';
     }
 }

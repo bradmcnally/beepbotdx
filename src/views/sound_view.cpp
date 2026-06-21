@@ -176,11 +176,22 @@ void SoundView::update(InputEvent event) {
                     if (slot.level >= 5) slot.level -= 5;
                     else slot.level = 0;
                     break;
-                case INPUT_ENTER:
+                case INPUT_ENTER: {
                     applyTrim();
                     _character.setState(CHAR_SUCCESS);
+                    uint32_t used = 0;
+                    for (int i = 0; i < NUM_SOUNDS; i++) {
+                        if (_project.sounds[i].occupied)
+                            used += _project.sounds[i].length * 2;
+                    }
+                    uint32_t budget = Memory::getSampleBudget();
+                    uint8_t pct = budget > 0 ? (uint8_t)(used * 100 / budget) : 0;
+                    char memMsg[12];
+                    snprintf(memMsg, sizeof(memMsg), "mem %d%%", pct);
+                    _character.say(memMsg);
                     _subState = STATE_LIST;
                     break;
+                }
                 case INPUT_ESC:
                     _subState = STATE_LIST;
                     _character.setState(CHAR_IDLE);
@@ -347,19 +358,6 @@ void SoundView::draw(Canvas& canvas) {
                 }
             }
 
-            // Memory usage
-            uint32_t used = 0;
-            for (int i = 0; i < NUM_SOUNDS; i++) {
-                if (_project.sounds[i].occupied)
-                    used += _project.sounds[i].length * 2;
-            }
-            uint32_t budget = Memory::getSampleBudget();
-            uint8_t pct = budget > 0 ? (uint8_t)(used * 100 / budget) : 0;
-            char memStr[12];
-            snprintf(memStr, sizeof(memStr), "MEM %d%%", pct);
-            canvas.setTextDatum(top_left);
-            canvas.setTextColor(theme.dim);
-            canvas.drawString(memStr, 4, SCREEN_HEIGHT - 10);
 
             // Status message (show for 3 seconds)
             if (_statusMsg[0] && (millis() - _statusTime < 3000)) {
