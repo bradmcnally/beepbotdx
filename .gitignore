@@ -1,0 +1,38 @@
+beep.bin
+rename_bin.py
+design/
+memory/
+test/
+beepbotdx_data/
+build/
+
+
+# PlatformIO build artifacts
+.pio/
+.pioenvs/
+.piolibdeps/
+
+# IDE and editor files
+.vscode/
+.idea/
+.claude/
+*.code-workspace
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Build outputs
+*.bin
+*.elf
+*.map
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python

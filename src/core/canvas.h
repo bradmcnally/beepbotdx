@@ -1,0 +1,111 @@
+#pragma once
+
+#include <cstdint>
+#include <cstring>
+
+#ifndef TFT_BLACK
+#define TFT_BLACK   0x0000
+#define TFT_WHITE   0xFFFF
+#define TFT_GREEN   0x07E0
+#define TFT_YELLOW  0xFFE0
+#define TFT_DARKGREY 0x7BEF
+#endif
+
+#ifdef ARDUINO
+#include <M5Cardputer.h>
+typedef lgfx::v1::textdatum::textdatum_t TextDatum;
+#else
+enum TextDatum {
+    top_left = 0,
+    top_center = 1,
+    top_right = 2,
+};
+#endif
+
+class Canvas {
+public:
+    Canvas() : _width(0), _height(0), _buffer(nullptr),
+               _textColor(TFT_WHITE), _textSize(1.0f), _textDatum(top_left) {}
+
+    bool create(int w, int h) {
+        _width = w;
+        _height = h;
+        _buffer = new uint16_t[w * h];
+        return _buffer != nullptr;
+    }
+
+    ~Canvas() { delete[] _buffer; }
+
+    int width() const { return _width; }
+    int height() const { return _height; }
+    uint16_t* buffer() { return _buffer; }
+
+    void fillScreen(uint16_t color) {
+        int total = _width * _height;
+        for (int i = 0; i < total; i++) _buffer[i] = color;
+    }
+
+    void drawPixel(int x, int y, uint16_t color) {
+        if (x >= 0 && x < _width && y >= 0 && y < _height)
+            _buffer[y * _width + x] = color;
+    }
+
+    void fillRect(int x, int y, int w, int h, uint16_t color) {
+        for (int row = y; row < y + h; row++) {
+            if (row < 0 || row >= _height) continue;
+            for (int col = x; col < x + w; col++) {
+                if (col >= 0 && col < _width)
+                    _buffer[row * _width + col] = color;
+            }
+        }
+    }
+
+    void drawRect(int x, int y, int w, int h, uint16_t color) {
+        drawFastHLine(x, y, w, color);
+        drawFastHLine(x, y + h - 1, w, color);
+        drawFastVLine(x, y, h, color);
+        drawFastVLine(x + w - 1, y, h, color);
+    }
+
+    void drawFastVLine(int x, int y, int h, uint16_t color) {
+        for (int row = y; row < y + h; row++) {
+            if (row >= 0 && row < _height && x >= 0 && x < _width)
+                _buffer[row * _width + x] = color;
+        }
+    }
+
+    void drawFastHLine(int x, int y, int w, uint16_t color) {
+        if (y < 0 || y >= _height) return;
+        for (int col = x; col < x + w; col++) {
+            if (col >= 0 && col < _width)
+                _buffer[y * _width + col] = color;
+        }
+    }
+
+    void fillCircle(int cx, int cy, int r, uint16_t color) {
+        for (int dy = -r; dy <= r; dy++) {
+            for (int dx = -r; dx <= r; dx++) {
+                if (dx * dx + dy * dy <= r * r)
+                    drawPixel(cx + dx, cy + dy, color);
+            }
+        }
+    }
+
+    void setTextColor(uint16_t color) { _textColor = color; }
+    void setTextSize(float size) { _textSize = size; }
+    void setTextDatum(TextDatum datum) { _textDatum = datum; }
+
+    void drawString(const char* str, int x, int y);
+
+    uint16_t textColor() const { return _textColor; }
+    float textSize() const { return _textSize; }
+    TextDatum textDatum() const { return _textDatum; }
+
+private:
+    int _width;
+    int _height;
+    uint16_t* _buffer;
+    uint16_t _textColor;
+    float _textSize;
+    TextDatum _textDatum;
+};
