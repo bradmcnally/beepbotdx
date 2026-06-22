@@ -2,12 +2,14 @@
 #include "platform/audio.h"
 #include "platform/power.h"
 #include "core/theme.h"
+#include "core/timing.h"
 #include "config.h"
 #include <cstdio>
 
 PatternEditView::PatternEditView(Project& project, Character& character, Sequencer& sequencer)
     : _project(project), _character(character), _sequencer(sequencer),
-      _patternIndex(0), _cursorX(0), _cursorY(0), _backRequested(false) {}
+      _patternIndex(0), _cursorX(0), _cursorY(0), _backRequested(false),
+      _flashSound(0xFF), _flashTime(0) {}
 
 void PatternEditView::enter() {
     _cursorX = 0;
@@ -85,6 +87,8 @@ void PatternEditView::triggerSound(uint8_t sound) {
     Audio::triggerSound(slot.samples, slot.length, slot.sampleRate, slot.level * 255 / 100);
     _character.setState(CHAR_BEAT);
     _character.say(slot.name);
+    _flashSound = sound;
+    _flashTime = millis();
 }
 
 void PatternEditView::draw(Canvas& canvas) {
@@ -148,6 +152,14 @@ void PatternEditView::draw(Canvas& canvas) {
                 canvas.drawRect(px, py, cellW, cellH, TFT_WHITE);
             }
         }
+    }
+
+    // Trigger indicator
+    if (_flashSound < NUM_SOUNDS && (millis() - _flashTime) < 1200) {
+        int py = gridTopY + _flashSound * (cellH + cellGap) + cellH / 2 - 3;
+        canvas.setTextColor(theme.accent);
+        canvas.setTextDatum(top_right);
+        canvas.drawString(">", gridLeftAdj, py);
     }
 
     // Info above grid: sound name (left), step number (right)

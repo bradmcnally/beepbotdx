@@ -31,4 +31,6 @@ private:
     uint8_t _cursorX; // step 0-15
     uint8_t _cursorY; // sound 0-7
     bool _backRequested;
+    uint8_t _flashSound;
+    uint32_t _flashTime;
 };

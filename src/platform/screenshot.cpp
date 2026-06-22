@@ -6,6 +6,7 @@
 #include <M5Cardputer.h>
 #include <SD.h>
 #include <PNGENC.h>
+#include <new>
 
 #define PNG_BUFFER_SIZE 16384
 
@@ -13,11 +14,14 @@ bool takeScreenshot() {
     const int displayWidth = SCREEN_WIDTH;
     const int displayHeight = SCREEN_HEIGHT;
 
+    // Need ~20KB free for PNG encoding buffers
+    if (ESP.getFreeHeap() < 32000) return false;
+
     bool success = false;
     uint8_t* pngBuffer = (uint8_t*)malloc(PNG_BUFFER_SIZE);
     uint8_t* lineBuffer = (uint8_t*)malloc(displayWidth * 4);
     uint16_t* displayLine = (uint16_t*)malloc(displayWidth * 2);
-    PNGENC* png = new PNGENC();
+    PNGENC* png = new (std::nothrow) PNGENC();
 
     if (!pngBuffer || !lineBuffer || !displayLine || !png) goto cleanup;
 

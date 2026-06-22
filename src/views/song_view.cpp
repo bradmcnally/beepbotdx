@@ -1,11 +1,13 @@
 #include "song_view.h"
+#include "platform/input.h"
 #include "core/theme.h"
+#include "core/timing.h"
 #include "config.h"
 #include <cstdio>
 
 SongView::SongView(Project& project, Character& character, Sequencer& sequencer)
     : _project(project), _character(character), _sequencer(sequencer),
-      _cursor(0), _editRequested(false) {}
+      _cursor(0), _editRequested(false), _flashSlot(0xFF), _flashTime(0), _lastSongPos(0xFF) {}
 
 void SongView::enter() {
     _editRequested = false;
@@ -13,6 +15,24 @@ void SongView::enter() {
 }
 
 void SongView::update(InputEvent event) {
+    if (!_sequencer.isPlaying() &&
+        (_character.getState() == CHAR_PLAYING || _character.getState() == CHAR_BEAT)) {
+        _character.setState(CHAR_IDLE);
+        _lastSongPos = 0xFF;
+    }
+
+    if (_sequencer.isPlaying()) {
+        uint8_t pos = _sequencer.getCurrentSongPosition();
+        if (pos != _lastSongPos) {
+            _lastSongPos = pos;
+            _flashSlot = pos;
+            _flashTime = millis();
+            char msg[8];
+            snprintf(msg, sizeof(msg), "P%02d", _project.song[pos] + 1);
+            _character.say(msg);
+        }
+    }
+
     switch (event) {
         case INPUT_LEFT:
             if (_cursor > 0) _cursor--;
@@ -45,6 +65,25 @@ void SongView::update(InputEvent event) {
         case INPUT_BACK:
             _project.song[_cursor] = 0xFF;
             break;
+        case INPUT_CHAR: {
+            char ch = Input::getChar();
+            if (ch == 'n') {
+                if (_project.song[_cursor] == 0xFF) {
+                    _project.song[_cursor] = 0;
+                } else if (_project.song[_cursor] < NUM_PATTERNS - 1) {
+                    _project.song[_cursor]++;
+                }
+            } else if (ch == 'p') {
+                if (_project.song[_cursor] != 0xFF) {
+                    if (_project.song[_cursor] > 0) {
+                        _project.song[_cursor]--;
+                    } else {
+                        _project.song[_cursor] = 0xFF;
+                    }
+                }
+            }
+            break;
+        }
         case INPUT_ENTER:
             if (_project.song[_cursor] != 0xFF) {
                 _editRequested = true;
@@ -55,8 +94,18 @@ void SongView::update(InputEvent event) {
                 _sequencer.stop();
                 _character.setState(CHAR_IDLE);
             } else {
-                _sequencer.playSong(0);
-                _character.setState(CHAR_PLAYING);
+                bool hasContent = false;
+                for (int i = 0; i < NUM_SONG_POSITIONS && !hasContent; i++) {
+                    if (_project.song[i] != 0xFF) hasContent = true;
+                }
+                if (hasContent) {
+                    _sequencer.playSong(0);
+                    _character.setState(CHAR_PLAYING);
+                    _lastSongPos = 0xFF;
+                } else {
+                    _character.setState(CHAR_ERROR);
+                    _character.say("empty");
+                }
             }
             break;
         default:
@@ -88,10 +137,12 @@ void SongView::draw(Canvas& canvas) {
 
         bool selected = (i == _cursor);
         bool empty = (_project.song[i] == 0xFF);
+        bool flashing = (i == _flashSlot && (millis() - _flashTime) < 150);
 
         // Cell background
         uint16_t bgColor;
-        if (selected) bgColor = TFT_WHITE;
+        if (flashing) bgColor = theme.dim;
+        else if (selected) bgColor = TFT_WHITE;
         else if (!empty) bgColor = theme.accent;
         else bgColor = theme.dark;
         canvas.fillRect(x, y, cellW, cellH, bgColor);

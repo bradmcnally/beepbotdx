@@ -136,7 +136,7 @@ void loop() {
 
     // 0 key saves project to current slot
     if (event == INPUT_NUM0 && currentScreen != SCREEN_PROJECT
-        && !(currentScreen == SCREEN_SOUND && soundView.inRename())) {
+        && !(currentScreen == SCREEN_SOUND && (soundView.inRename() || soundView.inTrim()))) {
         character.setState(CHAR_SAVING);
         character.say("saving...");
         if (Storage::saveProject(project, currentProjectSlot)) {
@@ -151,7 +151,7 @@ void loop() {
 
     // 9 key opens project picker
     if (event == INPUT_NUM9 && currentScreen != SCREEN_PROJECT
-        && !(currentScreen == SCREEN_SOUND && soundView.inRename())) {
+        && !(currentScreen == SCREEN_SOUND && (soundView.inRename() || soundView.inTrim()))) {
         screenBeforeProject = currentScreen;
         switchScreen(SCREEN_PROJECT);
         event = INPUT_NONE;
@@ -160,7 +160,8 @@ void loop() {
     // Fn+plus/minus adjusts display brightness
     static bool brightnessDirty = false;
     static uint32_t brightnessChangeTime = 0;
-    if ((event == INPUT_PLUS || event == INPUT_MINUS) && Input::isFnHeld()) {
+    if ((event == INPUT_PLUS || event == INPUT_MINUS) && Input::isFnHeld()
+        && !(currentScreen == SCREEN_SOUND && soundView.inRename())) {
         if (event == INPUT_PLUS) {
             displayBrightness = displayBrightness <= 90 ? displayBrightness + 10 : 100;
         } else {
@@ -184,10 +185,16 @@ void loop() {
     // +/- controls volume globally, B+plus/minus adjusts BPM
     // (project screen uses +/- for theme color)
     if ((event == INPUT_PLUS || event == INPUT_MINUS) && currentScreen != SCREEN_PROJECT
-        && !(currentScreen == SCREEN_SOUND && soundView.inTrim())) {
+        && !(currentScreen == SCREEN_SOUND && soundView.inTrim())
+        && !(currentScreen == SCREEN_SOUND && soundView.inRename())) {
         if (Input::isBHeld()) {
             if (event == INPUT_PLUS && project.bpm < MAX_BPM) project.bpm++;
             if (event == INPUT_MINUS && project.bpm > MIN_BPM) project.bpm--;
+            if (currentScreen == SCREEN_PLAY) {
+                char bpmMsg[10];
+                snprintf(bpmMsg, sizeof(bpmMsg), "bpm %d", project.bpm);
+                character.say(bpmMsg);
+            }
         } else {
             uint8_t vol = Audio::getVolume();
             if (event == INPUT_PLUS) {
@@ -204,7 +211,8 @@ void loop() {
     }
 
     // TAB menu: tap to cycle, hold+arrows to pick
-    if (event == INPUT_TAB && !tabMenuOpen && currentScreen != SCREEN_PROJECT) {
+    if (event == INPUT_TAB && !tabMenuOpen && currentScreen != SCREEN_PROJECT
+        && !(currentScreen == SCREEN_SOUND && soundView.inRename())) {
         tabMenuOpen = true;
         tabMenuVisible = false;
         tabMenuMoved = false;

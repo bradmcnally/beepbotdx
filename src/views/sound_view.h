@@ -3,6 +3,7 @@
 #include "view.h"
 #include "core/project.h"
 #include "core/character.h"
+#include "core/bloom_field.h"
 
 class SoundView : public View {
 public:
@@ -22,6 +23,7 @@ private:
         STATE_LIST,
         STATE_RECORD_READY,
         STATE_RECORDING,
+        STATE_RECORD_DONE,
         STATE_TRIM,
         STATE_LOAD_BROWSER,
         STATE_RENAME,
@@ -54,6 +56,11 @@ private:
 
     // Preview slot for file browser
     SoundSlot _previewSlot;
+
+    // Bloom field for recording visualization
+    BloomField _bloom;
+    uint32_t _recordStartTime;
+    uint32_t _recordDoneTime;
 
     // Audition flash
     uint8_t _flashSlot;

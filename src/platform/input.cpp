@@ -59,9 +59,12 @@ InputEvent Input::poll() {
     fnHeld = status.fn;
     tabHeld = status.tab;
     bHeld = false;
+    uint8_t keyCount = 0;
     for (auto key : status.word) {
-        if (key == 'b') { bHeld = true; break; }
+        if (key) keyCount++;
+        if (key == 'b') bHeld = true;
     }
+    if (keyCount <= 1) bHeld = false;
 
     // Track tab press/release for edge detection
     if (!tabHeld) {

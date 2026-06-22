@@ -112,7 +112,8 @@ int main(int argc, char* argv[]) {
         InputEvent event = Input::poll();
 
         // 0 key saves project
-        if (event == INPUT_NUM0 && currentScreen != SCREEN_PROJECT) {
+        if (event == INPUT_NUM0 && currentScreen != SCREEN_PROJECT
+            && !(currentScreen == SCREEN_SOUND && (soundView.inRename() || soundView.inTrim()))) {
             character.setState(CHAR_SAVING);
             character.say("saving...");
             if (Storage::saveProject(project, currentProjectSlot)) {
@@ -126,7 +127,8 @@ int main(int argc, char* argv[]) {
         }
 
         // 9 key opens project picker
-        if (event == INPUT_NUM9 && currentScreen != SCREEN_PROJECT) {
+        if (event == INPUT_NUM9 && currentScreen != SCREEN_PROJECT
+            && !(currentScreen == SCREEN_SOUND && (soundView.inRename() || soundView.inTrim()))) {
             screenBeforeProject = currentScreen;
             switchScreen(SCREEN_PROJECT);
             event = INPUT_NONE;
@@ -134,10 +136,15 @@ int main(int argc, char* argv[]) {
 
         // +/- volume, B+plus/minus BPM
         if ((event == INPUT_PLUS || event == INPUT_MINUS) && currentScreen != SCREEN_PROJECT
-            && !(currentScreen == SCREEN_SOUND && soundView.inTrim())) {
+            && !(currentScreen == SCREEN_SOUND && (soundView.inTrim() || soundView.inRename()))) {
             if (Input::isBHeld()) {
                 if (event == INPUT_PLUS && project.bpm < MAX_BPM) project.bpm++;
                 if (event == INPUT_MINUS && project.bpm > MIN_BPM) project.bpm--;
+                if (currentScreen == SCREEN_PLAY) {
+                    char bpmMsg[10];
+                    snprintf(bpmMsg, sizeof(bpmMsg), "bpm %d", project.bpm);
+                    character.say(bpmMsg);
+                }
             } else {
                 uint8_t vol = Audio::getVolume();
                 if (event == INPUT_PLUS) {
@@ -154,7 +161,8 @@ int main(int argc, char* argv[]) {
         }
 
         // TAB menu: tap to cycle, hold+arrows to pick
-        if (event == INPUT_TAB && !tabMenuOpen && currentScreen != SCREEN_PROJECT) {
+        if (event == INPUT_TAB && !tabMenuOpen && currentScreen != SCREEN_PROJECT
+            && !(currentScreen == SCREEN_SOUND && soundView.inRename())) {
             tabMenuOpen = true;
             tabMenuVisible = false;
             tabMenuMoved = false;

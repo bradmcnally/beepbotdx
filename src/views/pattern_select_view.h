@@ -23,4 +23,8 @@ private:
     Sequencer& _sequencer;
     uint8_t _cursor;
     bool _editRequested;
+    uint8_t _flashPattern;
+    uint32_t _flashTime;
+    Pattern _clipboard;
+    bool _hasClipboard;
 };

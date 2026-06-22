@@ -1,11 +1,15 @@
 #include "pattern_select_view.h"
+#include "platform/input.h"
 #include "core/theme.h"
+#include "core/timing.h"
 #include "config.h"
 #include <cstdio>
+#include <cstring>
 
 PatternSelectView::PatternSelectView(Project& project, Character& character, Sequencer& sequencer)
     : _project(project), _character(character), _sequencer(sequencer),
-      _cursor(0), _editRequested(false) {}
+      _cursor(0), _editRequested(false), _flashPattern(0xFF), _flashTime(0),
+      _clipboard{}, _hasClipboard(false) {}
 
 void PatternSelectView::enter() {
     _editRequested = false;
@@ -13,6 +17,11 @@ void PatternSelectView::enter() {
 }
 
 void PatternSelectView::update(InputEvent event) {
+    if (!_sequencer.isPlaying() &&
+        (_character.getState() == CHAR_PLAYING || _character.getState() == CHAR_BEAT)) {
+        _character.setState(CHAR_IDLE);
+    }
+
     switch (event) {
         case INPUT_LEFT:
             if (_cursor > 0) _cursor--;
@@ -26,6 +35,18 @@ void PatternSelectView::update(InputEvent event) {
         case INPUT_DOWN:
             if (_cursor < 12) _cursor += 4;
             break;
+        case INPUT_BACK: {
+            bool hasSteps = false;
+            for (int s = 0; s < NUM_STEPS && !hasSteps; s++) {
+                if (_project.patterns[_cursor].steps[s] != 0) hasSteps = true;
+            }
+            if (hasSteps) {
+                memset(_project.patterns[_cursor].steps, 0, NUM_STEPS);
+                _character.setState(CHAR_SUCCESS);
+                _character.say("cleared");
+            }
+            break;
+        }
         case INPUT_ENTER:
             _editRequested = true;
             break;
@@ -34,10 +55,33 @@ void PatternSelectView::update(InputEvent event) {
                 _sequencer.stop();
                 _character.setState(CHAR_IDLE);
             } else {
-                _sequencer.playPattern(_cursor, true);
-                _character.setState(CHAR_PLAYING);
+                bool hasSteps = false;
+                for (int s = 0; s < NUM_STEPS && !hasSteps; s++) {
+                    if (_project.patterns[_cursor].steps[s] != 0) hasSteps = true;
+                }
+                if (hasSteps) {
+                    _sequencer.playPattern(_cursor, true);
+                    _character.setState(CHAR_PLAYING);
+                    _flashPattern = _cursor;
+                    _flashTime = millis();
+                } else {
+                    _character.setState(CHAR_ERROR);
+                    _character.say("empty");
+                }
             }
             break;
+        case INPUT_CHAR: {
+            char ch = Input::getChar();
+            if (Input::isFnHeld() && ch == 'c') {
+                memcpy(_clipboard.steps, _project.patterns[_cursor].steps, NUM_STEPS);
+                _hasClipboard = true;
+                _character.say("copied");
+            } else if (Input::isFnHeld() && ch == 'v' && _hasClipboard) {
+                memcpy(_project.patterns[_cursor].steps, _clipboard.steps, NUM_STEPS);
+                _character.say("pasted");
+            }
+            break;
+        }
         default:
             break;
     }
@@ -71,10 +115,12 @@ void PatternSelectView::draw(Canvas& canvas) {
         }
 
         bool selected = (i == _cursor);
+        bool flashing = (i == _flashPattern && (millis() - _flashTime) < 150);
 
         // Cell background
         uint16_t bgColor;
-        if (selected) bgColor = TFT_WHITE;
+        if (flashing) bgColor = theme.dim;
+        else if (selected) bgColor = TFT_WHITE;
         else if (hasSteps) bgColor = theme.accent;
         else bgColor = theme.dark;
         canvas.fillRect(x, y, cellW, cellH, bgColor);

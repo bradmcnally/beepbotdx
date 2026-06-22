@@ -5,8 +5,20 @@
 #include "platform/memory.h"
 #include "core/theme.h"
 #include "core/timing.h"
+#include "core/bloom_field.h"
 #include "config.h"
 #include <cstring>
+
+static uint8_t computeAudioLevel(const int16_t* samples, uint32_t totalLength) {
+    if (!samples || totalLength == 0) return 0;
+    uint32_t scanStart = (totalLength > 1600) ? totalLength - 1600 : 0;
+    int16_t peak = 0;
+    for (uint32_t i = scanStart; i < totalLength; i++) {
+        int16_t val = samples[i] < 0 ? -samples[i] : samples[i];
+        if (val > peak) peak = val;
+    }
+    return (uint8_t)(peak >> 7);
+}
 
 SoundView::SoundView(Project& project, Character& character)
     : _project(project)
@@ -36,7 +48,7 @@ void SoundView::enter() {
 
 void SoundView::update(InputEvent event) {
     // Number keys always trigger sounds regardless of substate
-    if (_subState != STATE_TRIM && event >= INPUT_NUM1 && event <= INPUT_NUM8) {
+    if (_subState != STATE_TRIM && _subState != STATE_RENAME && event >= INPUT_NUM1 && event <= INPUT_NUM8) {
         uint8_t idx = event - INPUT_NUM1;
         triggerSlot(idx);
         return;
@@ -130,6 +142,17 @@ void SoundView::update(InputEvent event) {
         case STATE_RECORDING:
             if (event == INPUT_ENTER || Audio::getRecordedLength() >= MAX_SAMPLE_LENGTH) {
                 stopRecording();
+            }
+            break;
+
+        case STATE_RECORD_DONE:
+            if (millis() - _recordDoneTime > 500) {
+                SoundSlot& slot = _project.sounds[_cursor];
+                _trimStart = 0;
+                _trimEnd = slot.length;
+                _trimMovingEnd = false;
+                _subState = STATE_TRIM;
+                _character.setState(CHAR_FOCUSED);
             }
             break;
 
@@ -369,30 +392,118 @@ void SoundView::draw(Canvas& canvas) {
         }
 
         case STATE_RECORD_READY: {
-
-            char slotLabel[16];
-            snprintf(slotLabel, sizeof(slotLabel), "Slot %d", _cursor + 1);
-            canvas.setTextColor(theme.dark);
-            canvas.drawString(slotLabel, 8, startY + 16);
-
             canvas.setTextColor(theme.highlight);
-            canvas.drawString("press ENTER to start", 8, startY + 40);
-
+            canvas.setTextDatum(top_center);
+            canvas.drawString("press ENTER to record", SCREEN_WIDTH / 2, startY + 40);
             break;
         }
 
         case STATE_RECORDING: {
-
-            char slotLabel[32];
+            SoundSlot& slot = _project.sounds[_cursor];
             uint32_t recorded = Audio::getRecordedLength();
+            uint8_t level = computeAudioLevel(slot.samples, recorded);
+
+            float progress = (float)recorded / MAX_SAMPLE_LENGTH;
+            if (progress > 1.0f) progress = 1.0f;
+
+            if (level > 10) {
+                uint8_t boosted = level < 85 ? level * 3 : 255;
+                BloomFieldOps::injectAt(_bloom, boosted, BLOOM_COLS / 2, BLOOM_ROWS / 2);
+            }
+
+            // Step bloom at fixed rate (~60Hz) regardless of frame rate
+            uint32_t now = millis();
+            uint32_t lastStep = _bloom.lastSampleIndex;
+            if (lastStep == 0) lastStep = now;
+            while (now - lastStep >= 16) {
+                BloomFieldOps::step(_bloom);
+                lastStep += 16;
+            }
+            _bloom.lastSampleIndex = lastStep;
+
+            // Info row: RECORDING (left), time (right)
             float seconds = (float)recorded / SAMPLE_RATE;
-            snprintf(slotLabel, sizeof(slotLabel), "Slot %d  %.1fs", _cursor + 1, seconds);
             canvas.setTextColor(theme.accent);
-            canvas.drawString(slotLabel, 8, startY + 16);
+            canvas.setTextDatum(top_left);
+            canvas.drawString("RECORDING", 7, startY);
 
-            // Record indicator
-            canvas.fillCircle(SCREEN_WIDTH / 2, startY + 50, 8, theme.accent);
+            char timeStr[8];
+            snprintf(timeStr, sizeof(timeStr), "%.1fs", seconds);
+            canvas.setTextDatum(top_right);
+            canvas.drawString(timeStr, SCREEN_WIDTH - 8, startY);
 
+            // Bloom field — with 3px margin
+            const int fieldX = 3;
+            const int fieldY = startY + 10;
+            char ch[2] = {0, 0};
+            canvas.setTextDatum(top_left);
+
+            for (int row = 0; row < BLOOM_ROWS; row++) {
+                for (int col = 0; col < BLOOM_COLS; col++) {
+                    uint8_t energy = _bloom.cells[row][col].energy;
+                    ch[0] = BloomFieldOps::glyphForEnergy(energy);
+                    if (ch[0] == ' ') continue;
+
+                    if (energy > 150) canvas.setTextColor(TFT_WHITE);
+                    else if (energy > 100) canvas.setTextColor(theme.highlight);
+                    else if (energy > 40) canvas.setTextColor(theme.accent);
+                    else if (energy > 10) canvas.setTextColor(theme.dim);
+                    else canvas.setTextColor(theme.dark);
+
+                    canvas.drawString(ch, fieldX + col * 6, fieldY + row * 8);
+                }
+            }
+
+            // Input level bar
+            const int barY = SCREEN_HEIGHT - 10;
+            const int barX = 8;
+            const int barW = SCREEN_WIDTH - 16;
+            const int barH = 4;
+            canvas.fillRect(barX, barY, barW, barH, theme.dark);
+            int fillW = (int)(level * barW / 255);
+            if (fillW > 0) {
+                uint16_t barColor = (level > 200) ? theme.highlight : theme.accent;
+                canvas.fillRect(barX, barY, fillW, barH, barColor);
+            }
+
+            break;
+        }
+
+        case STATE_RECORD_DONE: {
+            SoundSlot& slot = _project.sounds[_cursor];
+            float seconds = (float)slot.length / SAMPLE_RATE;
+
+            // Info row: RECORDING (left), final time (right)
+            canvas.setTextColor(theme.accent);
+            canvas.setTextDatum(top_left);
+            canvas.drawString("RECORDING", 7, startY);
+
+            char timeStr[8];
+            snprintf(timeStr, sizeof(timeStr), "%.1fs", seconds);
+            canvas.setTextDatum(top_right);
+            canvas.drawString(timeStr, SCREEN_WIDTH - 8, startY);
+
+            // Keep showing bloom field frozen
+            const int fieldX = 3;
+            const int fieldY = startY + 10;
+            char ch[2] = {0, 0};
+            canvas.setTextDatum(top_left);
+
+            for (int row = 0; row < BLOOM_ROWS; row++) {
+                for (int col = 0; col < BLOOM_COLS; col++) {
+                    uint8_t energy = _bloom.cells[row][col].energy;
+                    ch[0] = BloomFieldOps::glyphForEnergy(energy);
+                    if (ch[0] == ' ') continue;
+
+                    if (energy > 150) canvas.setTextColor(TFT_WHITE);
+                    else if (energy > 100) canvas.setTextColor(theme.highlight);
+                    else if (energy > 40) canvas.setTextColor(theme.accent);
+                    else if (energy > 10) canvas.setTextColor(theme.dim);
+                    else canvas.setTextColor(theme.dark);
+
+                    canvas.drawString(ch, fieldX + col * 6, fieldY + row * 8);
+                }
+            }
             break;
         }
 
@@ -559,6 +670,10 @@ void SoundView::startRecording() {
         return;
     }
     Audio::recordStart(slot.samples, MAX_SAMPLE_LENGTH);
+    BloomFieldOps::reset(_bloom);
+    BloomFieldOps::inject(_bloom, 80, 0.0f);
+    BloomFieldOps::step(_bloom);
+    _recordStartTime = millis();
     _subState = STATE_RECORDING;
     _character.setState(CHAR_RECORDING);
     _character.say("listening...");
@@ -575,12 +690,9 @@ void SoundView::stopRecording() {
         snprintf(defaultName, sizeof(defaultName), "REC%d", _cursor + 1);
         SoundSlotOps::setName(slot, defaultName);
 
-        // Enter trim mode
-        _trimStart = 0;
-        _trimEnd = slot.length;
-        _trimMovingEnd = false;
-        _subState = STATE_TRIM;
-        _character.setState(CHAR_FOCUSED);
+        _subState = STATE_RECORD_DONE;
+        _recordDoneTime = millis();
+        _character.setState(CHAR_SUCCESS);
         _character.say("got it!");
     } else {
         _character.setState(CHAR_ERROR);

@@ -18,6 +18,7 @@ include_directories(
 add_definitions(-DDESKTOP_BUILD)
 
 set(CORE_SOURCES
+    src/core/bloom_field.cpp
     src/core/canvas.cpp
     src/core/character.cpp
     src/core/project.cpp

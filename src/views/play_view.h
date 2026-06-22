@@ -4,6 +4,7 @@
 #include "core/project.h"
 #include "core/character.h"
 #include "core/sequencer.h"
+#include "core/bloom_field.h"
 
 class PlayView : public View {
 public:
@@ -20,20 +21,6 @@ private:
     Character& _character;
     Sequencer& _sequencer;
 
-    // Waveform pulse state
-    static const int WAVE_W = 220;
-    int8_t _wave[WAVE_W];
-    uint8_t _pulseEnergy;
-
-    // Floating labels
-    struct FloatingLabel {
-        char name[9];
-        int16_t x;
-        int16_t y;
-        uint8_t life; // frames remaining
-        bool active;
-    };
-    static const int MAX_FLOATS = 6;
-    FloatingLabel _floats[MAX_FLOATS];
-    uint8_t _nextFloat;
+    BloomField _bloom;
+    uint8_t _lastSound;
 };
