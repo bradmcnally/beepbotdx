@@ -96,14 +96,12 @@ void ProjectView::draw(Canvas& canvas) {
 
     canvas.setTextSize(1);
     canvas.setTextDatum(top_left);
-    canvas.setTextColor(theme.accent);
-    canvas.drawString("PROJECT", 4, 22);
 
     // Current slot indicator
     char slotStr[16];
     snprintf(slotStr, sizeof(slotStr), "SLOT %d", _currentSlot + 1);
     canvas.setTextColor(theme.dark);
-    canvas.drawString(slotStr, 180, 22);
+    canvas.drawString(slotStr, 4, 22);
 
     const int gridX = 12;
     const int gridY = 50;

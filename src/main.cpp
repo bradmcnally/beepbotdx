@@ -50,6 +50,10 @@ enum Screen {
 static Screen currentScreen = SCREEN_SOUND;
 static Screen screenBeforeProject = SCREEN_SOUND;
 
+// Help overlay
+static bool helpOpen = false;
+static int helpScroll = 0;
+
 // Tab menu
 static bool tabMenuOpen = false;
 static bool tabMenuVisible = false;
@@ -77,6 +81,136 @@ static void switchScreen(Screen s) {
     getView(currentScreen)->exit();
     currentScreen = s;
     getView(currentScreen)->enter();
+}
+
+struct HelpLine { const char* key; const char* action; };
+
+static void drawHelp(Canvas& canvas, Screen screen, const Theme& theme) {
+    // Scrim
+    uint16_t* buf = canvas.buffer();
+    int total = SCREEN_WIDTH * SCREEN_HEIGHT;
+    for (int p = 0; p < total; p++) {
+        uint16_t c = buf[p];
+        uint8_t r = (c >> 11) & 0x1F;
+        uint8_t g = (c >> 5) & 0x3F;
+        uint8_t b = c & 0x1F;
+        buf[p] = ((r * 15 / 100) << 11) | ((g * 15 / 100) << 5) | (b * 15 / 100);
+    }
+
+    canvas.setTextSize(1);
+
+    static const HelpLine soundHelp[] = {
+        {"ENTER", "open slot"}, {"SPACE", "audition"}, {"DEL", "clear"},
+        {"I", "import wav"}, {"R", "rename"}, {"1-8", "audition"},
+    };
+    static const HelpLine trimHelp[] = {
+        {"L/R", "adjust point"}, {"U/D", "switch start/end"}, {"SPACE", "audition"},
+        {"+/-", "volume"}, {"ENTER", "apply"}, {"ESC", "cancel"},
+    };
+    static const HelpLine patSelectHelp[] = {
+        {"ENTER", "edit"}, {"SPACE", "audition"}, {"DEL", "clear"},
+        {"Fn+C", "copy"}, {"Fn+V", "paste"},
+    };
+    static const HelpLine patEditHelp[] = {
+        {"ENTER", "toggle step"}, {"SPACE", "play/stop"}, {"ESC", "back"},
+        {"1-8", "audition"},
+    };
+    static const HelpLine songHelp[] = {
+        {"ENTER", "edit pattern"}, {"SPACE", "play song"}, {"DEL", "clear slot"},
+        {"N/P", "cycle pattern"},
+    };
+    static const HelpLine playHelp[] = {
+        {"SPACE", "play/stop"}, {"1-8", "audition"},
+    };
+    static const HelpLine globals[] = {
+        {"S", "save"}, {"O", "open"}, {"+/-", "volume"},
+        {"B+/-", "bpm"}, {"Fn+/-", "bright"}, {"TAB", "navigate"},
+    };
+
+    const HelpLine* lines = nullptr;
+    int lineCount = 0;
+    const char* screenTitle = "";
+    bool showGlobals = true;
+
+    switch (screen) {
+        case SCREEN_SOUND:
+            if (soundView.inTrim()) {
+                lines = trimHelp; lineCount = 6; screenTitle = "TRIM"; showGlobals = false;
+            } else {
+                lines = soundHelp; lineCount = 6; screenTitle = "SOUND";
+            }
+            break;
+        case SCREEN_PATTERN_SELECT:
+            lines = patSelectHelp; lineCount = 5; screenTitle = "PATTERN"; break;
+        case SCREEN_PATTERN_EDIT:
+            lines = patEditHelp; lineCount = 4; screenTitle = "PATTERN EDIT"; break;
+        case SCREEN_SONG:
+            lines = songHelp; lineCount = 4; screenTitle = "SONG"; break;
+        case SCREEN_PLAY:
+            lines = playHelp; lineCount = 2; screenTitle = "PLAY"; break;
+        default: return;
+    }
+
+    int totalLines = lineCount + (showGlobals ? 1 + 6 : 0);
+    const int visibleLines = 12;
+    int maxScroll = totalLines > visibleLines ? totalLines - visibleLines : 0;
+    if (helpScroll > maxScroll) helpScroll = maxScroll;
+
+    int y = 10;
+
+    // Screen title
+    canvas.setTextColor(theme.accent);
+    canvas.setTextDatum(top_center);
+    canvas.drawString(screenTitle, SCREEN_WIDTH / 2, y);
+    y += 12;
+
+    int lineIdx = 0;
+
+    // Screen-specific shortcuts
+    canvas.setTextDatum(top_left);
+    for (int i = 0; i < lineCount; i++) {
+        if (lineIdx >= helpScroll && lineIdx < helpScroll + visibleLines) {
+            canvas.setTextColor(theme.accent);
+            canvas.drawString(lines[i].key, 14, y);
+            canvas.setTextColor(TFT_WHITE);
+            canvas.drawString(lines[i].action, 60, y);
+            y += 9;
+        }
+        lineIdx++;
+    }
+
+    // Global section
+    if (showGlobals) {
+        if (lineIdx >= helpScroll && lineIdx < helpScroll + visibleLines) {
+            y += 3;
+            canvas.setTextColor(theme.dim);
+            canvas.setTextDatum(top_center);
+            canvas.drawString("-- global --", SCREEN_WIDTH / 2, y);
+            y += 10;
+        }
+        lineIdx++;
+        canvas.setTextDatum(top_left);
+        for (int i = 0; i < 6; i++) {
+            if (lineIdx >= helpScroll && lineIdx < helpScroll + visibleLines) {
+                canvas.setTextColor(theme.accent);
+                canvas.drawString(globals[i].key, 14, y);
+                canvas.setTextColor(TFT_WHITE);
+                canvas.drawString(globals[i].action, 60, y);
+                y += 9;
+            }
+            lineIdx++;
+        }
+    }
+
+    // Scrollbar
+    if (maxScroll > 0) {
+        const int trackTop = 10;
+        const int trackH = SCREEN_HEIGHT - 20;
+        int thumbH = trackH * visibleLines / totalLines;
+        if (thumbH < 6) thumbH = 6;
+        int thumbY = trackTop + (trackH - thumbH) * helpScroll / maxScroll;
+        canvas.fillRect(SCREEN_WIDTH - 3, thumbY, 3, thumbH, theme.accent);
+    }
 }
 
 static void onTrigger(uint8_t soundIndex) {
@@ -134,9 +268,29 @@ void loop() {
     }
 #endif
 
-    // 0 key saves project to current slot
-    if (event == INPUT_NUM0 && currentScreen != SCREEN_PROJECT
-        && !(currentScreen == SCREEN_SOUND && (soundView.inRename() || soundView.inTrim()))) {
+    // Help overlay toggle
+    if (helpOpen && event != INPUT_NONE) {
+        if (event == INPUT_UP) {
+            if (helpScroll > 0) helpScroll--;
+        } else if (event == INPUT_DOWN) {
+            helpScroll++;
+        } else {
+            helpOpen = false;
+            helpScroll = 0;
+        }
+        event = INPUT_NONE;
+    } else if (event == INPUT_CHAR && Input::getChar() == 'h'
+        && currentScreen != SCREEN_PROJECT
+        && !(currentScreen == SCREEN_SOUND && soundView.inRename())) {
+        helpOpen = true;
+        helpScroll = 0;
+        event = INPUT_NONE;
+    }
+
+    // S key saves project to current slot
+    if (event == INPUT_CHAR && Input::getChar() == 's'
+        && currentScreen != SCREEN_PROJECT
+        && !(currentScreen == SCREEN_SOUND && soundView.inRename())) {
         character.setState(CHAR_SAVING);
         character.say("saving...");
         if (Storage::saveProject(project, currentProjectSlot)) {
@@ -149,9 +303,10 @@ void loop() {
         event = INPUT_NONE;
     }
 
-    // 9 key opens project picker
-    if (event == INPUT_NUM9 && currentScreen != SCREEN_PROJECT
-        && !(currentScreen == SCREEN_SOUND && (soundView.inRename() || soundView.inTrim()))) {
+    // O key opens project picker
+    if (event == INPUT_CHAR && Input::getChar() == 'o'
+        && currentScreen != SCREEN_PROJECT
+        && !(currentScreen == SCREEN_SOUND && soundView.inRename())) {
         screenBeforeProject = currentScreen;
         switchScreen(SCREEN_PROJECT);
         event = INPUT_NONE;
@@ -360,6 +515,11 @@ void loop() {
     canvas.drawString(batStr, hdrLeft + hdrContentW - 4, 7);
 
     view->draw(canvas);
+
+    // Help overlay
+    if (helpOpen) {
+        drawHelp(canvas, currentScreen, theme);
+    }
 
     // Tab menu overlay
     if (tabMenuVisible) {
