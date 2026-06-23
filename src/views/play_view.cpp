@@ -22,8 +22,14 @@ void PlayView::onTrigger(uint8_t soundIndex) {
     _lastSound = soundIndex;
 
     // Each slot has its own position on the grid (2 rows x 4 cols layout)
-    static const int slotX[8] = {5, 14, 24, 33, 5, 14, 24, 33};
-    static const int slotY[8] = {3, 3, 3, 3, 9, 9, 9, 9};
+    const int colSpacing = BLOOM_COLS / 5;
+    const int slotX[8] = {
+        colSpacing, colSpacing*2, colSpacing*3, colSpacing*4,
+        colSpacing, colSpacing*2, colSpacing*3, colSpacing*4
+    };
+    const int rowY1 = BLOOM_ROWS / 4;
+    const int rowY2 = BLOOM_ROWS * 3 / 4;
+    const int slotY[8] = {rowY1, rowY1, rowY1, rowY1, rowY2, rowY2, rowY2, rowY2};
 
     uint8_t energy = 120;
     if (_project.sounds[soundIndex].occupied) {
@@ -101,15 +107,7 @@ void PlayView::draw(Canvas& canvas) {
         canvas.drawString(posStr, infoRight, infoY);
     }
 
-    // Step bloom at fixed rate (~60Hz) regardless of frame rate
-    uint32_t now = millis();
-    uint32_t lastStep = _bloom.lastSampleIndex;
-    if (lastStep == 0) lastStep = now;
-    while (now - lastStep >= 16) {
-        BloomFieldOps::step(_bloom);
-        lastStep += 16;
-    }
-    _bloom.lastSampleIndex = lastStep;
+    BloomFieldOps::tick(_bloom, millis());
 
     // Draw bloom field — with margin
     const int fieldX = 4;

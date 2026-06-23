@@ -25,6 +25,8 @@ private:
     bool _closeRequested;
     bool _loaded;
     bool _slotExists[8];
+    uint8_t _slotTheme[8];
+    uint16_t _slotBpm[8];
     char _statusMsg[24];
     uint32_t _statusTime;
 };

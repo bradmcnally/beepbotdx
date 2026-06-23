@@ -1,0 +1,23 @@
+{
+  "version": 3,
+  "configurePresets": [
+    {
+      "name": "adv",
+      "displayName": "Cardputer ADV (240x135)",
+      "binaryDir": "${sourceDir}/build",
+      "cacheVariables": {
+        "SCREEN_W": "240",
+        "SCREEN_H": "135"
+      }
+    },
+    {
+      "name": "zero",
+      "displayName": "Cardputer Zero (320x170)",
+      "binaryDir": "${sourceDir}/build_zero",
+      "cacheVariables": {
+        "SCREEN_W": "320",
+        "SCREEN_H": "170"
+      }
+    }
+  ]
+}

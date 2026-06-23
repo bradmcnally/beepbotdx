@@ -31,6 +31,7 @@ void Sequencer::playSong(uint8_t startPosition) {
     _step = 0;
     _mode = SEQ_SONG;
     _lastStepTime = 0;
+    _oneShot = false;
 }
 
 void Sequencer::stop() {
@@ -62,7 +63,7 @@ void Sequencer::tick(uint32_t now) {
     }
 
     uint32_t interval = stepIntervalMs();
-    if (now - _lastStepTime >= interval) {
+    while (now - _lastStepTime >= interval) {
         _lastStepTime += interval;
         _step++;
 

@@ -104,6 +104,16 @@ void BloomFieldOps::step(BloomField& field) {
     }
 }
 
+void BloomFieldOps::tick(BloomField& field, uint32_t now) {
+    uint32_t last = field.lastSampleIndex;
+    if (last == 0) last = now;
+    while (now - last >= 16) {
+        step(field);
+        last += 16;
+    }
+    field.lastSampleIndex = last;
+}
+
 static const char GLYPHS[] = ".:;+*xo%#@";
 static const int GLYPH_COUNT = 10;
 

@@ -125,11 +125,10 @@ void PatternSelectView::draw(Canvas& canvas) {
         else bgColor = theme.dark;
         canvas.fillRect(x, y, cellW, cellH, bgColor);
 
-        const uint16_t gray50 = 0x7BEF;
         uint16_t textColor;
         if (selected) textColor = TFT_BLACK;
         else if (hasSteps) textColor = TFT_BLACK;
-        else textColor = gray50;
+        else textColor = TFT_WHITE;
         canvas.setTextColor(textColor);
         canvas.setTextDatum(top_left);
 

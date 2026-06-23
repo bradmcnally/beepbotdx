@@ -34,6 +34,7 @@ Theme ThemeOps::getPreset(uint8_t index) {
         p.b + (255 - p.b) / 3
     );
     t.bg = rgb565(p.r * 5 / 100, p.g * 5 / 100, p.b * 5 / 100);
+    t.measure = rgb565(p.r * 35 / 100, p.g * 35 / 100, p.b * 35 / 100);
     return t;
 }
 

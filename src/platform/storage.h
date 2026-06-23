@@ -13,6 +13,8 @@ bool listWavFiles(const char* dir, char names[][32], uint8_t& count, uint8_t max
 bool saveProject(const Project& project, uint8_t slot);
 bool loadProject(Project& project, uint8_t slot);
 bool projectExists(uint8_t slot);
+uint8_t loadProjectTheme(uint8_t slot);
+uint16_t loadProjectBpm(uint8_t slot);
 bool renderSongToWav(const Project& project, const char* path);
 
 }

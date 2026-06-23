@@ -8,6 +8,7 @@ struct Theme {
     uint16_t dark;       // ~15% for secondary elements
     uint16_t highlight;  // bright variant for playheads/active
     uint16_t bg;         // ~5% tint for background
+    uint16_t measure;    // ~35% for beat markers (columns 1,5,9,13)
 };
 
 namespace ThemeOps {

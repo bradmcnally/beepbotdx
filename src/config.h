@@ -18,8 +18,12 @@
 #define MAX_BPM 240
 
 // Display
+#ifndef SCREEN_WIDTH
 #define SCREEN_WIDTH 240
+#endif
+#ifndef SCREEN_HEIGHT
 #define SCREEN_HEIGHT 135
+#endif
 
 // SD Card SPI pins (Cardputer ADV)
 #define SD_SPI_CLK 40

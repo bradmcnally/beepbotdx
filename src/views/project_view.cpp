@@ -2,6 +2,7 @@
 #include "platform/storage.h"
 #include "core/theme.h"
 #include "core/timing.h"
+#include "core/grid_layout.h"
 #include "config.h"
 #include <cstring>
 
@@ -21,6 +22,13 @@ void ProjectView::enter() {
 
     for (uint8_t i = 0; i < 8; i++) {
         _slotExists[i] = Storage::projectExists(i);
+        if (i == _currentSlot) {
+            _slotTheme[i] = _project.themeIndex;
+            _slotBpm[i] = _project.bpm;
+        } else {
+            _slotTheme[i] = _slotExists[i] ? Storage::loadProjectTheme(i) : 0;
+            _slotBpm[i] = _slotExists[i] ? Storage::loadProjectBpm(i) : DEFAULT_BPM;
+        }
     }
 }
 
@@ -31,6 +39,12 @@ void ProjectView::update(InputEvent event) {
             break;
         case INPUT_RIGHT:
             if (_cursor < 7) _cursor++;
+            break;
+        case INPUT_UP:
+            if (_cursor >= 4) _cursor -= 4;
+            break;
+        case INPUT_DOWN:
+            if (_cursor < 4) _cursor += 4;
             break;
         case INPUT_ENTER:
             if (_cursor == _currentSlot) {
@@ -54,8 +68,7 @@ void ProjectView::update(InputEvent event) {
                 Project::init(_project);
                 _currentSlot = _cursor;
                 snprintf(_statusMsg, sizeof(_statusMsg), "NEW %d", _cursor + 1);
-                _character.setState(CHAR_SUCCESS);
-                _character.say("fresh!");
+                _character.setState(CHAR_FLIP);
                 _loaded = true;
                 _statusTime = millis();
             }
@@ -97,53 +110,46 @@ void ProjectView::draw(Canvas& canvas) {
     canvas.setTextSize(1);
     canvas.setTextDatum(top_left);
 
-    // Current slot indicator
-    char slotStr[16];
-    snprintf(slotStr, sizeof(slotStr), "SLOT %d", _currentSlot + 1);
-    canvas.setTextColor(theme.dark);
-    canvas.drawString(slotStr, 4, 22);
-
-    const int gridX = 12;
-    const int gridY = 50;
-    const int cellW = 28;
+    GridLayout grid = GridLayout::make(4, 2, 22);
 
     for (uint8_t i = 0; i < 8; i++) {
-        int x = gridX + i * cellW;
+        int x, y;
+        grid.cellXY(i, x, y);
 
+        uint16_t bgColor;
+        uint16_t textColor;
         if (i == _cursor) {
-            canvas.fillRect(x - 1, gridY - 1, 22, 18, theme.accent);
-            canvas.setTextColor(TFT_BLACK);
-        } else if (i == _currentSlot) {
-            canvas.setTextColor(theme.highlight);
+            bgColor = TFT_WHITE;
+            textColor = TFT_BLACK;
         } else if (_slotExists[i]) {
-            canvas.setTextColor(theme.accent);
+            Theme slotTheme = ThemeOps::getPreset(_slotTheme[i]);
+            bgColor = theme.dim;
+            textColor = slotTheme.accent;
         } else {
-            canvas.setTextColor(theme.dim);
+            bgColor = theme.dark;
+            textColor = 0x7BEF;
         }
+        canvas.fillRect(x, y, grid.cellW, grid.cellH, bgColor);
 
-        char label[2];
-        label[0] = '1' + i;
-        label[1] = '\0';
-        canvas.drawString(label, x + 5, gridY + 3);
+        canvas.setTextDatum(top_left);
+        canvas.setTextColor(textColor);
+        char numStr[4];
+        snprintf(numStr, sizeof(numStr), "%02d", i + 1);
+        canvas.drawString(numStr, x + 4, y + 4);
+
+        if (_slotExists[i]) {
+            char bpmStr[8];
+            snprintf(bpmStr, sizeof(bpmStr), "%dbpm", _slotBpm[i]);
+            canvas.drawString(bpmStr, x + 4, y + 14);
+        } else {
+            canvas.drawString("empty", x + 4, y + 14);
+        }
     }
-
-    // Theme selector
-    int themeY = gridY + 26;
-    canvas.setTextColor(theme.dark);
-    canvas.drawString("COLOR", 12, themeY);
-    canvas.fillRect(54, themeY - 1, 14, 10, theme.accent);
-    canvas.setTextColor(theme.accent);
-    canvas.drawString(ThemeOps::getPresetName(_project.themeIndex), 72, themeY);
-    canvas.setTextColor(theme.dark);
-    canvas.drawString("+/-", 120, themeY);
-
-    // Help
-    canvas.setTextColor(theme.dim);
-    canvas.drawString("ENTER=load  SPACE=export", 12, themeY + 16);
 
     if (_statusMsg[0] && (millis() - _statusTime < 2000)) {
         canvas.setTextColor(theme.highlight);
-        canvas.drawString(_statusMsg, 12, themeY + 30);
+        canvas.setTextDatum(top_right);
+        canvas.drawString(_statusMsg, SCREEN_WIDTH - 4, SCREEN_HEIGHT - 10);
     }
 }
 

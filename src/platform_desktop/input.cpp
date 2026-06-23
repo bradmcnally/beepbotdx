@@ -6,6 +6,7 @@ static bool bHeld = false;
 static bool fnHeld = false;
 static bool tabHeld = false;
 
+static bool quitRequested = false;
 static SDL_Scancode lastArrowKey = SDL_SCANCODE_UNKNOWN;
 static uint32_t lastKeyTime = 0;
 static bool keyRepeating = false;
@@ -54,7 +55,8 @@ InputEvent Input::poll() {
     SDL_Event ev;
     while (SDL_PollEvent(&ev)) {
         if (ev.type == SDL_QUIT) {
-            exit(0);
+            quitRequested = true;
+            return INPUT_NONE;
         }
         if (ev.type == SDL_KEYDOWN && ev.key.repeat == 0) {
             SDL_Scancode sc = ev.key.keysym.scancode;
@@ -113,4 +115,8 @@ InputEvent Input::poll() {
     }
 
     return INPUT_NONE;
+}
+
+bool Input::shouldQuit() {
+    return quitRequested;
 }

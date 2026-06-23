@@ -30,6 +30,8 @@ const char* Character::getFace() const {
         case CHAR_ERROR:     return "(>_<)";
         case CHAR_SUCCESS:   return "\\(^o^)/";
         case CHAR_BEAT:      return "(^O^)";
+        case CHAR_FLIP:      return "(╯°□°)╯︵ ♪♫♬";
+        case CHAR_FLIP_BACK: return "♪♫♬ノ(°_°ノ)";
     }
     return "(^_^)";
 }
@@ -49,10 +51,17 @@ void Character::tick() {
             _state = _prevState;
         }
     }
-    if (_state == CHAR_SUCCESS || _state == CHAR_ERROR) {
+    if (_state == CHAR_SUCCESS || _state == CHAR_ERROR || _state == CHAR_FLIP_BACK) {
         uint32_t elapsed = millis() - _stateTime;
         if (elapsed > 1500) {
             _state = CHAR_IDLE;
+        }
+    }
+    if (_state == CHAR_FLIP) {
+        uint32_t elapsed = millis() - _stateTime;
+        if (elapsed > 1500) {
+            _state = CHAR_FLIP_BACK;
+            _stateTime = millis();
         }
     }
     if (_message[0] && (millis() - _msgTime > 1200)) {

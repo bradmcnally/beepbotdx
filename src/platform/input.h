@@ -34,5 +34,6 @@ char getChar();
 bool isBHeld();
 bool isFnHeld();
 bool isTabHeld();
+bool shouldQuit();
 
 }

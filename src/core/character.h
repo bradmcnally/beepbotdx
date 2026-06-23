@@ -11,6 +11,8 @@ enum CharacterState {
     CHAR_ERROR,
     CHAR_SUCCESS,
     CHAR_BEAT,
+    CHAR_FLIP,
+    CHAR_FLIP_BACK,
 };
 
 class Character {

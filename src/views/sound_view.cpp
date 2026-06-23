@@ -6,6 +6,7 @@
 #include "core/theme.h"
 #include "core/timing.h"
 #include "core/bloom_field.h"
+#include "core/grid_layout.h"
 #include "config.h"
 #include <cstring>
 
@@ -128,7 +129,11 @@ void SoundView::update(InputEvent event) {
             switch (event) {
                 case INPUT_ENTER:
                 case INPUT_SPACE:
-                    startRecording();
+                    _countdownStart = millis();
+                    _countdownBeat = 0;
+                    _subState = STATE_COUNTDOWN;
+                    _character.setState(CHAR_FOCUSED);
+                    _character.say("3");
                     break;
                 case INPUT_ESC:
                     _subState = STATE_LIST;
@@ -138,6 +143,29 @@ void SoundView::update(InputEvent event) {
                     break;
             }
             break;
+
+        case STATE_COUNTDOWN: {
+            if (event == INPUT_ESC) {
+                _subState = STATE_LIST;
+                _character.setState(CHAR_IDLE);
+                break;
+            }
+            uint32_t beatMs = 60000 / _project.bpm;
+            uint8_t elapsed = (millis() - _countdownStart) / beatMs;
+            if (elapsed > _countdownBeat) {
+                _countdownBeat = elapsed;
+                if (_countdownBeat >= 3) {
+                    startRecording();
+                } else {
+                    char msg[2];
+                    msg[0] = '3' - _countdownBeat;
+                    msg[1] = '\0';
+                    _character.say(msg);
+                    _character.setState(CHAR_BEAT);
+                }
+            }
+            break;
+        }
 
         case STATE_RECORDING:
             if (event == INPUT_ENTER || Audio::getRecordedLength() >= MAX_SAMPLE_LENGTH) {
@@ -333,23 +361,11 @@ void SoundView::draw(Canvas& canvas) {
 
     switch (_subState) {
         case STATE_LIST: {
-            const int margin = 3;
-            const int spacing = 3;
-            const int cols = 4;
-            const int rows = 2;
-            const int gridTop = 22;
-            const int gridW = SCREEN_WIDTH - margin * 2;
-            const int gridH = SCREEN_HEIGHT - gridTop - margin;
-            const int cellW = (gridW - spacing * (cols - 1)) / cols;
-            const int cellH = (gridH - spacing * (rows - 1)) / rows;
-            const int gridLeft = margin + (gridW - cellW * cols - spacing * (cols - 1)) / 2;
-            const int gridTopY = gridTop + (gridH - cellH * rows - spacing * (rows - 1)) / 2;
+            GridLayout grid = GridLayout::make(4, 2, 22);
 
             for (int i = 0; i < NUM_SOUNDS; i++) {
-                int col = i % cols;
-                int row = i / cols;
-                int x = gridLeft + col * (cellW + spacing);
-                int y = gridTopY + row * (cellH + spacing);
+                int x, y;
+                grid.cellXY(i, x, y);
 
                 bool selected = (i == _cursor);
                 bool occupied = _project.sounds[i].occupied;
@@ -361,7 +377,7 @@ void SoundView::draw(Canvas& canvas) {
                 else if (selected) bgColor = TFT_WHITE;
                 else if (occupied) bgColor = theme.accent;
                 else bgColor = theme.dark;
-                canvas.fillRect(x, y, cellW, cellH, bgColor);
+                canvas.fillRect(x, y, grid.cellW, grid.cellH, bgColor);
 
                 // Cell content: "01\nName"
                 canvas.setTextDatum(top_left);
@@ -374,10 +390,9 @@ void SoundView::draw(Canvas& canvas) {
                     canvas.drawString(numStr, x + 4, y + 4);
                     canvas.drawString(_project.sounds[i].name, x + 4, y + 14);
                 } else {
-                    const uint16_t gray50 = 0x7BEF;
-                    canvas.setTextColor(selected ? TFT_BLACK : gray50);
+                    canvas.setTextColor(selected ? TFT_BLACK : TFT_WHITE);
                     canvas.drawString(numStr, x + 4, y + 4);
-                    canvas.drawString("-", x + 4, y + 14);
+                    canvas.drawString("empty", x + 4, y + 14);
                 }
             }
 
@@ -398,6 +413,17 @@ void SoundView::draw(Canvas& canvas) {
             break;
         }
 
+        case STATE_COUNTDOWN: {
+            uint8_t count = 3 - _countdownBeat;
+            char countStr[2] = { (char)('0' + count), '\0' };
+            canvas.setTextSize(2);
+            canvas.setTextColor(theme.accent);
+            canvas.setTextDatum(top_center);
+            canvas.drawString(countStr, SCREEN_WIDTH / 2, startY + 30);
+            canvas.setTextSize(1);
+            break;
+        }
+
         case STATE_RECORDING: {
             SoundSlot& slot = _project.sounds[_cursor];
             uint32_t recorded = Audio::getRecordedLength();
@@ -408,18 +434,13 @@ void SoundView::draw(Canvas& canvas) {
 
             if (level > 10) {
                 uint8_t boosted = level < 85 ? level * 3 : 255;
-                BloomFieldOps::injectAt(_bloom, boosted, BLOOM_COLS / 2, BLOOM_ROWS / 2);
+                BloomFieldOps::injectAt(_bloom, boosted, BLOOM_COLS / 4, BLOOM_ROWS / 2);
+                BloomFieldOps::injectAt(_bloom, boosted, BLOOM_COLS * 3 / 4, BLOOM_ROWS / 2);
+                BloomFieldOps::injectAt(_bloom, boosted * 3 / 4, BLOOM_COLS / 2, BLOOM_ROWS / 4);
+                BloomFieldOps::injectAt(_bloom, boosted * 3 / 4, BLOOM_COLS / 2, BLOOM_ROWS * 3 / 4);
             }
 
-            // Step bloom at fixed rate (~60Hz) regardless of frame rate
-            uint32_t now = millis();
-            uint32_t lastStep = _bloom.lastSampleIndex;
-            if (lastStep == 0) lastStep = now;
-            while (now - lastStep >= 16) {
-                BloomFieldOps::step(_bloom);
-                lastStep += 16;
-            }
-            _bloom.lastSampleIndex = lastStep;
+            BloomFieldOps::tick(_bloom, millis());
 
             // Info row: RECORDING (left), time (right)
             float seconds = (float)recorded / SAMPLE_RATE;
@@ -658,6 +679,7 @@ void SoundView::exit() {
     if (_subState == STATE_RECORDING) {
         stopRecording();
     }
+    SoundSlotOps::free(_previewSlot);
 }
 
 void SoundView::startRecording() {

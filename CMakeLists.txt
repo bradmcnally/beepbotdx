@@ -5,19 +5,25 @@ set(CMAKE_CXX_STANDARD 17)
 
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(SDL2 REQUIRED sdl2)
-pkg_check_modules(SDL2_IMAGE REQUIRED SDL2_image)
 
 include_directories(
     src
     src/core
     src/views
     ${SDL2_INCLUDE_DIRS}
-    ${SDL2_IMAGE_INCLUDE_DIRS}
 )
 
 add_definitions(-DDESKTOP_BUILD)
 
+if(SCREEN_W)
+    add_definitions(-DSCREEN_WIDTH=${SCREEN_W})
+endif()
+if(SCREEN_H)
+    add_definitions(-DSCREEN_HEIGHT=${SCREEN_H})
+endif()
+
 set(CORE_SOURCES
+    src/core/app.cpp
     src/core/bloom_field.cpp
     src/core/canvas.cpp
     src/core/character.cpp
@@ -52,5 +58,5 @@ add_executable(beepbotdx
     ${PLATFORM_SOURCES}
 )
 
-target_link_directories(beepbotdx PRIVATE ${SDL2_LIBRARY_DIRS} ${SDL2_IMAGE_LIBRARY_DIRS})
-target_link_libraries(beepbotdx ${SDL2_LIBRARIES} ${SDL2_IMAGE_LIBRARIES})
+target_link_directories(beepbotdx PRIVATE ${SDL2_LIBRARY_DIRS})
+target_link_libraries(beepbotdx ${SDL2_LIBRARIES})

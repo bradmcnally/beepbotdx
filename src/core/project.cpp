@@ -6,7 +6,7 @@ void Project::init(Project& p) {
     p.themeIndex = 0;
 
     for (int i = 0; i < NUM_SOUNDS; i++) {
-        SoundSlotOps::init(p.sounds[i]);
+        SoundSlotOps::free(p.sounds[i]);
     }
 
     memset(p.patterns, 0, sizeof(p.patterns));

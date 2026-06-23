@@ -268,7 +268,7 @@ bool Storage::listWavFiles(const char* dir, char names[][32], uint8_t& count, ui
 }
 
 static const uint32_t PROJECT_MAGIC = 0x42505844; // "BPXD"
-static const uint8_t PROJECT_VERSION = 2;
+static const uint8_t PROJECT_VERSION = 3;
 
 struct ProjectHeader {
     uint32_t magic;
@@ -277,6 +277,7 @@ struct ProjectHeader {
     uint8_t themeIndex;
     uint8_t soundOccupied[NUM_SOUNDS];
     char soundNames[NUM_SOUNDS][9];
+    uint8_t soundLevels[NUM_SOUNDS];
     Pattern patterns[NUM_PATTERNS];
     uint8_t song[NUM_SONG_POSITIONS];
 };
@@ -297,6 +298,32 @@ bool Storage::projectExists(uint8_t slot) {
     if (!file) return false;
     file.close();
     return true;
+}
+
+uint8_t Storage::loadProjectTheme(uint8_t slot) {
+    if (!_sdReady || slot >= 8) return 0;
+    char path[48];
+    projectPath(slot, path, sizeof(path));
+    File file = SD.open(path);
+    if (!file) return 0;
+    ProjectHeader hdr;
+    if (file.read((uint8_t*)&hdr, sizeof(hdr)) != sizeof(hdr)) { file.close(); return 0; }
+    file.close();
+    if (hdr.magic != PROJECT_MAGIC || hdr.version != PROJECT_VERSION) return 0;
+    return hdr.themeIndex;
+}
+
+uint16_t Storage::loadProjectBpm(uint8_t slot) {
+    if (!_sdReady || slot >= 8) return DEFAULT_BPM;
+    char path[48];
+    projectPath(slot, path, sizeof(path));
+    File file = SD.open(path);
+    if (!file) return DEFAULT_BPM;
+    ProjectHeader hdr;
+    if (file.read((uint8_t*)&hdr, sizeof(hdr)) != sizeof(hdr)) { file.close(); return DEFAULT_BPM; }
+    file.close();
+    if (hdr.magic != PROJECT_MAGIC || hdr.version != PROJECT_VERSION) return DEFAULT_BPM;
+    return hdr.bpm;
 }
 
 bool Storage::saveProject(const Project& project, uint8_t slot) {
@@ -333,6 +360,7 @@ bool Storage::saveProject(const Project& project, uint8_t slot) {
 
     for (int i = 0; i < NUM_SOUNDS; i++) {
         hdr.soundOccupied[i] = project.sounds[i].occupied ? 1 : 0;
+        hdr.soundLevels[i] = project.sounds[i].level;
         if (project.sounds[i].occupied) {
             strncpy(hdr.soundNames[i], project.sounds[i].name, 8);
             hdr.soundNames[i][8] = '\0';
@@ -382,6 +410,7 @@ bool Storage::loadProject(Project& project, uint8_t slot) {
             snprintf(path, sizeof(path), "%s/s%d.wav", dir, i);
             if (Storage::loadWav(project.sounds[i], path)) {
                 SoundSlotOps::setName(project.sounds[i], hdr.soundNames[i]);
+                project.sounds[i].level = hdr.soundLevels[i];
             }
         }
     }
@@ -434,6 +463,7 @@ bool Storage::renderSongToWav(const Project& project, const char* path) {
         uint32_t length;
         uint32_t pos;
         uint32_t srcRate;
+        uint8_t level;
         bool active;
     };
     Voice voices[NUM_VOICES];
@@ -449,7 +479,7 @@ bool Storage::renderSongToWav(const Project& project, const char* path) {
         uint8_t songPos = step / NUM_STEPS;
         uint8_t patStep = step % NUM_STEPS;
         uint8_t patIdx = project.song[songPos];
-        uint8_t triggers = project.patterns[patIdx].steps[patStep];
+        uint8_t triggers = (patIdx < NUM_PATTERNS) ? project.patterns[patIdx].steps[patStep] : 0;
 
         // Fire triggers
         for (uint8_t s = 0; s < NUM_SOUNDS; s++) {
@@ -458,6 +488,7 @@ bool Storage::renderSongToWav(const Project& project, const char* path) {
                 v.samples = project.sounds[s].samples;
                 v.length = project.sounds[s].length;
                 v.srcRate = project.sounds[s].sampleRate;
+                v.level = project.sounds[s].level;
                 v.pos = 0;
                 v.active = true;
                 nextVoice = (nextVoice + 1) % NUM_VOICES;
@@ -480,7 +511,8 @@ bool Storage::renderSongToWav(const Project& project, const char* path) {
                         voices[v].active = false;
                         break;
                     }
-                    int32_t mixed = (int32_t)chunk[i] + (int32_t)voices[v].samples[srcPos];
+                    int32_t sample = (int32_t)voices[v].samples[srcPos] * voices[v].level / 100;
+                    int32_t mixed = (int32_t)chunk[i] + sample;
                     if (mixed > 32767) mixed = 32767;
                     if (mixed < -32768) mixed = -32768;
                     chunk[i] = (int16_t)mixed;

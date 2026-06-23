@@ -99,13 +99,59 @@ static const uint8_t font5x7[][5] = {
     {0x08,0x08,0x2A,0x1C,0x08}, // ~
 };
 
+// Extended glyphs for UTF-8 characters (5x7 bitmaps)
+struct ExtGlyph { uint32_t codepoint; uint8_t bitmap[5]; };
+
+static const ExtGlyph extGlyphs[] = {
+    // ╯ U+256F - arc up-left (arm raising)
+    {0x256F, {0x20,0x10,0x08,0x04,0x03}},
+    // ° U+00B0 - degree sign
+    {0x00B0, {0x00,0x06,0x09,0x06,0x00}},
+    // □ U+25A1 - white square
+    {0x25A1, {0x7F,0x41,0x41,0x41,0x7F}},
+    // ︵ U+FE35 - arc (throwing motion)
+    {0xFE35, {0x10,0x28,0x44,0x28,0x10}},
+    // ♪ U+266A - eighth note
+    {0x266A, {0x02,0x03,0x7D,0x09,0x06}},
+    // ♫ U+266B - beamed eighth notes
+    {0x266B, {0x06,0x79,0x03,0x79,0x06}},
+    // ♬ U+266C - beamed sixteenth notes
+    {0x266C, {0x06,0x7D,0x05,0x7D,0x06}},
+    // ノ U+30CE - katakana no (arm reaching)
+    {0x30CE, {0x20,0x10,0x08,0x04,0x02}},
+};
+static const int EXT_GLYPH_COUNT = 8;
+
+static const uint8_t* findExtGlyph(uint32_t cp) {
+    for (int i = 0; i < EXT_GLYPH_COUNT; i++) {
+        if (extGlyphs[i].codepoint == cp) return extGlyphs[i].bitmap;
+    }
+    return nullptr;
+}
+
+static int utf8Decode(const char* s, uint32_t& cp) {
+    uint8_t b = (uint8_t)s[0];
+    if (b < 0x80) { cp = b; return 1; }
+    if ((b & 0xE0) == 0xC0) { cp = (b & 0x1F) << 6 | (s[1] & 0x3F); return 2; }
+    if ((b & 0xF0) == 0xE0) { cp = (b & 0x0F) << 12 | (s[1] & 0x3F) << 6 | (s[2] & 0x3F); return 3; }
+    if ((b & 0xF8) == 0xF0) { cp = (b & 0x07) << 18 | (s[1] & 0x3F) << 12 | (s[2] & 0x3F) << 6 | (s[3] & 0x3F); return 4; }
+    cp = '?'; return 1;
+}
+
+static int utf8CharCount(const char* str) {
+    int count = 0;
+    while (*str) {
+        uint32_t cp;
+        str += utf8Decode(str, cp);
+        count++;
+    }
+    return count;
+}
+
 void Canvas::drawString(const char* str, int x, int y) {
     if (!str) return;
 
-    int len = 0;
-    const char* p = str;
-    while (*p++) len++;
-
+    int len = utf8CharCount(str);
     int charW = (int)(6 * _textSize);
     int totalW = len * charW;
 
@@ -113,10 +159,19 @@ void Canvas::drawString(const char* str, int x, int y) {
     if (_textDatum == top_center) startX = x - totalW / 2;
     else if (_textDatum == top_right) startX = x - totalW;
 
-    for (int i = 0; i < len; i++) {
-        char ch = str[i];
-        if (ch < 32 || ch > 126) ch = '?';
-        const uint8_t* glyph = font5x7[ch - 32];
+    const char* p = str;
+    int i = 0;
+    while (*p) {
+        uint32_t cp;
+        p += utf8Decode(p, cp);
+
+        const uint8_t* glyph = nullptr;
+        if (cp >= 32 && cp <= 126) {
+            glyph = font5x7[cp - 32];
+        } else {
+            glyph = findExtGlyph(cp);
+            if (!glyph) glyph = font5x7['?' - 32];
+        }
 
         int cx = startX + i * charW;
 
@@ -134,5 +189,6 @@ void Canvas::drawString(const char* str, int x, int y) {
                 }
             }
         }
+        i++;
     }
 }

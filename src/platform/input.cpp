@@ -145,3 +145,7 @@ InputEvent Input::poll() {
 
     return INPUT_NONE;
 }
+
+bool Input::shouldQuit() {
+    return false;
+}

@@ -22,6 +22,7 @@ private:
     enum SubState {
         STATE_LIST,
         STATE_RECORD_READY,
+        STATE_COUNTDOWN,
         STATE_RECORDING,
         STATE_RECORD_DONE,
         STATE_TRIM,
@@ -56,6 +57,10 @@ private:
 
     // Preview slot for file browser
     SoundSlot _previewSlot;
+
+    // Countdown state
+    uint32_t _countdownStart;
+    uint8_t _countdownBeat;
 
     // Bloom field for recording visualization
     BloomField _bloom;

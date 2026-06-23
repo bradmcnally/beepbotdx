@@ -145,7 +145,8 @@ void PatternEditView::draw(Canvas& canvas) {
                 if (dotH < 2) dotH = 2;
                 canvas.fillRect(px + (cellW - dotW) / 2, py + (cellH - dotH) / 2, dotW, dotH, NOTE_COLOR);
             } else {
-                canvas.fillRect(px + 1, py + 1, cellW - 2, cellH - 2, NOTE_DIM);
+                uint16_t bg = (x % 4 == 0) ? theme.measure : NOTE_DIM;
+                canvas.fillRect(px + 1, py + 1, cellW - 2, cellH - 2, bg);
             }
 
             if (isCursor) {

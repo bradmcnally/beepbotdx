@@ -2,6 +2,7 @@
 #include "platform/input.h"
 #include "core/theme.h"
 #include "core/timing.h"
+#include "core/grid_layout.h"
 #include "config.h"
 #include <cstdio>
 
@@ -117,23 +118,11 @@ void SongView::draw(Canvas& canvas) {
     Theme theme = ThemeOps::getPreset(_project.themeIndex);
     canvas.setTextSize(1);
 
-    const int margin = 3;
-    const int spacing = 3;
-    const int cols = 4;
-    const int rows = 4;
-    const int gridTop = 22;
-    const int gridW = SCREEN_WIDTH - margin * 2;
-    const int gridH = SCREEN_HEIGHT - gridTop - margin;
-    const int cellW = (gridW - spacing * (cols - 1)) / cols;
-    const int cellH = (gridH - spacing * (rows - 1)) / rows;
-    const int gridLeft = margin + (gridW - cellW * cols - spacing * (cols - 1)) / 2;
-    const int gridTopY = gridTop + (gridH - cellH * rows - spacing * (rows - 1)) / 2;
+    GridLayout grid = GridLayout::make(4, 4, 22);
 
     for (uint8_t i = 0; i < NUM_SONG_POSITIONS; i++) {
-        int col = i % cols;
-        int row = i / cols;
-        int x = gridLeft + col * (cellW + spacing);
-        int y = gridTopY + row * (cellH + spacing);
+        int x, y;
+        grid.cellXY(i, x, y);
 
         bool selected = (i == _cursor);
         bool empty = (_project.song[i] == 0xFF);
@@ -145,7 +134,7 @@ void SongView::draw(Canvas& canvas) {
         else if (selected) bgColor = TFT_WHITE;
         else if (!empty) bgColor = theme.accent;
         else bgColor = theme.dark;
-        canvas.fillRect(x, y, cellW, cellH, bgColor);
+        canvas.fillRect(x, y, grid.cellW, grid.cellH, bgColor);
 
         if (!empty) {
             canvas.setTextColor(TFT_BLACK);
