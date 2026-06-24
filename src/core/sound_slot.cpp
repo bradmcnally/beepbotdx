@@ -33,6 +33,7 @@ bool SoundSlotOps::allocate(SoundSlot& slot, uint32_t maxLength) {
     memset(slot.samples, 0, bytes);
     slot.length = 0;
     slot.sampleRate = SAMPLE_RATE;
+    slot.level = 100;
     slot.occupied = false;
     return true;
 }

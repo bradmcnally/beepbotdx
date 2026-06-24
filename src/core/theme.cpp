@@ -42,3 +42,10 @@ const char* ThemeOps::getPresetName(uint8_t index) {
     if (index >= ThemeOps::NUM_PRESETS) index = 0;
     return presets[index].name;
 }
+
+void ThemeOps::getPresetRGB(uint8_t index, uint8_t& r, uint8_t& g, uint8_t& b) {
+    if (index >= NUM_PRESETS) index = 0;
+    r = presets[index].r;
+    g = presets[index].g;
+    b = presets[index].b;
+}

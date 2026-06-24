@@ -102,7 +102,7 @@ void PatternEditView::draw(Canvas& canvas) {
     canvas.setTextDatum(top_left);
 
     const int margin = 3;
-    const int infoY = 22;
+    const int infoY = 23;
     const int gridTop = infoY + 10;
     const int gridBottom = SCREEN_HEIGHT - 3;
     const int gridH = gridBottom - gridTop;
@@ -116,7 +116,7 @@ void PatternEditView::draw(Canvas& canvas) {
     const int gridRight = hdrLeft + hdrContentW - 4;
     const int gridW = gridRight - gridLeft;
 
-    const int cellGap = 1;
+    const int cellGap = 2;
     const int cellW = (gridW - (NUM_STEPS - 1) * cellGap) / NUM_STEPS;
     const int cellH = (gridH - (NUM_SOUNDS - 1) * cellGap) / NUM_SOUNDS;
     const int actualW = cellW * NUM_STEPS + (NUM_STEPS - 1) * cellGap;
@@ -145,7 +145,7 @@ void PatternEditView::draw(Canvas& canvas) {
                 if (dotH < 2) dotH = 2;
                 canvas.fillRect(px + (cellW - dotW) / 2, py + (cellH - dotH) / 2, dotW, dotH, NOTE_COLOR);
             } else {
-                uint16_t bg = (x % 4 == 0) ? theme.measure : NOTE_DIM;
+                uint16_t bg = (x % 4 == 0) ? theme.measure : theme.dark;
                 canvas.fillRect(px + 1, py + 1, cellW - 2, cellH - 2, bg);
             }
 

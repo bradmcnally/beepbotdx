@@ -1,5 +1,6 @@
 #include "app.h"
 #include "platform/storage.h"
+#include "platform/led.h"
 #include <cstdio>
 #include <cstring>
 
@@ -17,12 +18,28 @@ void App::init(AppCallbacks callbacks) {
     Project::init(_project);
     _sequencer.init(&_project);
     _sequencer.setCallback(onTrigger);
+    _sequencer.setStepCallback(onStep);
 }
 
 void App::loadSlot(uint8_t slot) {
     _currentProjectSlot = slot;
     Storage::loadProject(_project, slot);
+    uint8_t r, g, b;
+    ThemeOps::getPresetRGB(_project.themeIndex, r, g, b);
+    LED::setColor(r, g, b);
     getView(_currentScreen)->enter();
+}
+
+void App::onStep(uint8_t step) {
+    App* app = _instance;
+    if (app->_lowBattery) return;
+    if (step % 4 == 0) {
+        uint8_t r, g, b;
+        ThemeOps::getPresetRGB(app->_project.themeIndex, r, g, b);
+        LED::setColor(r, g, b);
+    } else {
+        LED::off();
+    }
 }
 
 void App::onTrigger(uint8_t soundIndex) {
@@ -37,6 +54,11 @@ void App::onTrigger(uint8_t soundIndex) {
 
 void App::tick() {
     _character.tick();
+
+    if (!_lowBattery && Power::getBatteryPercent() <= 10) {
+        _lowBattery = true;
+        LED::setColor(255, 0, 0);
+    }
 
     if (Audio::isRecording()) {
         Audio::recordUpdate();

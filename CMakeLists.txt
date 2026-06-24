@@ -50,6 +50,7 @@ set(PLATFORM_SOURCES
     src/platform_desktop/storage.cpp
     src/platform_desktop/power.cpp
     src/platform_desktop/memory.cpp
+    src/platform_desktop/led.cpp
 )
 
 add_executable(beepbotdx

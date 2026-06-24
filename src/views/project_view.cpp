@@ -1,5 +1,6 @@
 #include "project_view.h"
 #include "platform/storage.h"
+#include "platform/led.h"
 #include "core/theme.h"
 #include "core/timing.h"
 #include "core/grid_layout.h"
@@ -92,9 +93,11 @@ void ProjectView::update(InputEvent event) {
         }
         case INPUT_PLUS:
             _project.themeIndex = (_project.themeIndex + 1) % ThemeOps::NUM_PRESETS;
+            { uint8_t r, g, b; ThemeOps::getPresetRGB(_project.themeIndex, r, g, b); LED::setColor(r, g, b); }
             break;
         case INPUT_MINUS:
             _project.themeIndex = (_project.themeIndex + ThemeOps::NUM_PRESETS - 1) % ThemeOps::NUM_PRESETS;
+            { uint8_t r, g, b; ThemeOps::getPresetRGB(_project.themeIndex, r, g, b); LED::setColor(r, g, b); }
             break;
         case INPUT_ESC:
             _closeRequested = true;

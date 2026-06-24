@@ -133,7 +133,6 @@ void SoundView::update(InputEvent event) {
                     _countdownBeat = 0;
                     _subState = STATE_COUNTDOWN;
                     _character.setState(CHAR_FOCUSED);
-                    _character.say("3");
                     break;
                 case INPUT_ESC:
                     _subState = STATE_LIST;
@@ -157,10 +156,6 @@ void SoundView::update(InputEvent event) {
                 if (_countdownBeat >= 3) {
                     startRecording();
                 } else {
-                    char msg[2];
-                    msg[0] = '3' - _countdownBeat;
-                    msg[1] = '\0';
-                    _character.say(msg);
                     _character.setState(CHAR_BEAT);
                 }
             }
@@ -409,17 +404,17 @@ void SoundView::draw(Canvas& canvas) {
         case STATE_RECORD_READY: {
             canvas.setTextColor(theme.highlight);
             canvas.setTextDatum(top_center);
-            canvas.drawString("press ENTER to record", SCREEN_WIDTH / 2, startY + 40);
+            canvas.drawString("press ENTER to record", SCREEN_WIDTH / 2, startY + (SCREEN_HEIGHT - startY) / 2 - 13);
             break;
         }
 
         case STATE_COUNTDOWN: {
             uint8_t count = 3 - _countdownBeat;
             char countStr[2] = { (char)('0' + count), '\0' };
-            canvas.setTextSize(2);
+            canvas.setTextSize(3);
             canvas.setTextColor(theme.accent);
             canvas.setTextDatum(top_center);
-            canvas.drawString(countStr, SCREEN_WIDTH / 2, startY + 30);
+            canvas.drawString(countStr, SCREEN_WIDTH / 2, startY + (SCREEN_HEIGHT - startY - 21) / 2 - 8);
             canvas.setTextSize(1);
             break;
         }
@@ -434,10 +429,9 @@ void SoundView::draw(Canvas& canvas) {
 
             if (level > 10) {
                 uint8_t boosted = level < 85 ? level * 3 : 255;
-                BloomFieldOps::injectAt(_bloom, boosted, BLOOM_COLS / 4, BLOOM_ROWS / 2);
-                BloomFieldOps::injectAt(_bloom, boosted, BLOOM_COLS * 3 / 4, BLOOM_ROWS / 2);
-                BloomFieldOps::injectAt(_bloom, boosted * 3 / 4, BLOOM_COLS / 2, BLOOM_ROWS / 4);
-                BloomFieldOps::injectAt(_bloom, boosted * 3 / 4, BLOOM_COLS / 2, BLOOM_ROWS * 3 / 4);
+                BloomFieldOps::injectAt(_bloom, boosted, BLOOM_COLS / 3, BLOOM_ROWS * 2 / 5);
+                BloomFieldOps::injectAt(_bloom, boosted * 4 / 5, BLOOM_COLS * 2 / 3, BLOOM_ROWS * 3 / 5);
+                BloomFieldOps::injectAt(_bloom, boosted * 3 / 4, BLOOM_COLS / 5, BLOOM_ROWS * 3 / 4);
             }
 
             BloomFieldOps::tick(_bloom, millis());
@@ -536,7 +530,7 @@ void SoundView::draw(Canvas& canvas) {
             const int hdrCellW = (hdrGridW - margin * 3) / 4;
             const int hdrContentW = hdrCellW * 4 + margin * 3;
             const int hdrLeft = margin + (hdrGridW - hdrContentW) / 2;
-            const int infoY = 22;
+            const int infoY = 23;
 
             float startSec = (float)_trimStart / slot.sampleRate;
             float endSec = (float)_trimEnd / slot.sampleRate;

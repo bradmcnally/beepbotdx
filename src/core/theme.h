@@ -22,6 +22,9 @@ Theme getPreset(uint8_t index);
 // Get preset name
 const char* getPresetName(uint8_t index);
 
+// Get preset accent RGB (8-bit)
+void getPresetRGB(uint8_t index, uint8_t& r, uint8_t& g, uint8_t& b);
+
 // Convert 8-bit RGB to RGB565
 uint16_t rgb565(uint8_t r, uint8_t g, uint8_t b);
 

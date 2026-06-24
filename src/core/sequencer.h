@@ -11,11 +11,13 @@ enum SequencerMode {
 };
 
 using TriggerCallback = void(*)(uint8_t soundIndex);
+using StepCallback = void(*)(uint8_t step);
 
 class Sequencer {
 public:
     void init(Project* project);
     void setCallback(TriggerCallback cb);
+    void setStepCallback(StepCallback cb);
 
     void playPattern(uint8_t patternIndex, bool oneShot = false);
     void playSong(uint8_t startPosition);
@@ -35,6 +37,7 @@ private:
 
     Project* _project = nullptr;
     TriggerCallback _callback = nullptr;
+    StepCallback _stepCallback = nullptr;
     SequencerMode _mode = SEQ_STOPPED;
     uint8_t _patternIndex = 0;
     uint8_t _step = 0;

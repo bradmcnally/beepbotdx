@@ -7,6 +7,7 @@
 #include "platform/display.h"
 #include "platform/storage.h"
 #include "platform/memory.h"
+#include "platform/led.h"
 #if ENABLE_SCREENSHOTS
 #include "platform/screenshot.h"
 #endif
@@ -48,6 +49,7 @@ void setup() {
     Audio::init();
     Storage::init();
     Memory::init();
+    LED::init();
 
     prefs.begin("beepbotdx", false);
     displayBrightness = prefs.getUChar("brightness", 80);

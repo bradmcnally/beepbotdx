@@ -12,6 +12,10 @@ void Sequencer::setCallback(TriggerCallback cb) {
     _callback = cb;
 }
 
+void Sequencer::setStepCallback(StepCallback cb) {
+    _stepCallback = cb;
+}
+
 void Sequencer::playPattern(uint8_t patternIndex, bool oneShot) {
     _patternIndex = patternIndex;
     _step = 0;
@@ -44,6 +48,7 @@ uint32_t Sequencer::stepIntervalMs() const {
 }
 
 void Sequencer::fireStep() {
+    if (_stepCallback) _stepCallback(_step);
     if (!_callback) return;
     uint8_t triggers = _project->patterns[_patternIndex].steps[_step];
     for (uint8_t i = 0; i < NUM_SOUNDS; i++) {

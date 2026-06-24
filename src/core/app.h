@@ -54,6 +54,9 @@ private:
     void drawTabMenu(Canvas& canvas, const Theme& theme);
 
     static void onTrigger(uint8_t soundIndex);
+    static void onStep(uint8_t step);
+
+    bool _lowBattery = false;
 
     Project _project;
     Character _character;
