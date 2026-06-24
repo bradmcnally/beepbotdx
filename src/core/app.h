@@ -57,6 +57,7 @@ private:
     static void onStep(uint8_t step);
 
     bool _lowBattery = false;
+    bool _ledPlaying = false;
 
     Project _project;
     Character _character;

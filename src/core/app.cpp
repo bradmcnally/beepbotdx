@@ -33,6 +33,7 @@ void App::loadSlot(uint8_t slot) {
 void App::onStep(uint8_t step) {
     App* app = _instance;
     if (app->_lowBattery) return;
+    app->_ledPlaying = true;
     if (step % 4 == 0) {
         uint8_t r, g, b;
         ThemeOps::getPresetRGB(app->_project.themeIndex, r, g, b);
@@ -65,6 +66,13 @@ void App::tick() {
     }
 
     _sequencer.tick(millis());
+
+    if (_ledPlaying && !_sequencer.isPlaying() && !_lowBattery) {
+        _ledPlaying = false;
+        uint8_t r, g, b;
+        ThemeOps::getPresetRGB(_project.themeIndex, r, g, b);
+        LED::setColor(r, g, b);
+    }
 
     InputEvent event = Input::poll();
 
