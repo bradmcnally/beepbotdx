@@ -36,10 +36,18 @@ void ProjectView::enter() {
 void ProjectView::update(InputEvent event) {
     switch (event) {
         case INPUT_LEFT:
-            if (_cursor > 0) _cursor--;
+            if (_cursor % 2 > 0) _cursor--;
+            else if (_cursor >= 2) _cursor -= 1;
             break;
         case INPUT_RIGHT:
-            if (_cursor < 7) _cursor++;
+            if (_cursor % 2 < 1) _cursor++;
+            else if (_cursor < 6) _cursor += 1;
+            break;
+        case INPUT_UP:
+            if (_cursor >= 2) _cursor -= 2;
+            break;
+        case INPUT_DOWN:
+            if (_cursor < 6) _cursor += 2;
             break;
         case INPUT_ENTER:
             if (_cursor == _currentSlot) {
@@ -87,10 +95,12 @@ void ProjectView::update(InputEvent event) {
         }
         case INPUT_PLUS:
             _project.themeIndex = (_project.themeIndex + 1) % ThemeOps::NUM_PRESETS;
+            _slotTheme[_currentSlot] = _project.themeIndex;
             { uint8_t r, g, b; ThemeOps::getPresetRGB(_project.themeIndex, r, g, b); LED::setColor(r, g, b); }
             break;
         case INPUT_MINUS:
             _project.themeIndex = (_project.themeIndex + ThemeOps::NUM_PRESETS - 1) % ThemeOps::NUM_PRESETS;
+            _slotTheme[_currentSlot] = _project.themeIndex;
             { uint8_t r, g, b; ThemeOps::getPresetRGB(_project.themeIndex, r, g, b); LED::setColor(r, g, b); }
             break;
         case INPUT_ESC:
@@ -107,7 +117,7 @@ void ProjectView::draw(Canvas& canvas) {
     canvas.setTextSize(1);
     canvas.setTextDatum(top_left);
 
-    GridLayout grid = GridLayout::make(8, 1, 3);
+    GridLayout grid = GridLayout::make(2, 4, 3);
 
     for (uint8_t i = 0; i < 8; i++) {
         int x, y;
@@ -130,9 +140,15 @@ void ProjectView::draw(Canvas& canvas) {
 
         canvas.setTextDatum(top_left);
         canvas.setTextColor(textColor);
-        char numStr[4];
-        snprintf(numStr, sizeof(numStr), "%02d", i + 1);
-        canvas.drawString(numStr, x + 4, y + 4);
+        if (i == _currentSlot) {
+            char numStr[8];
+            snprintf(numStr, sizeof(numStr), ">%02d", i + 1);
+            canvas.drawString(numStr, x + 2, y + 4);
+        } else {
+            char numStr[4];
+            snprintf(numStr, sizeof(numStr), "%02d", i + 1);
+            canvas.drawString(numStr, x + 4, y + 4);
+        }
 
         if (_slotExists[i]) {
             char bpmStr[8];
