@@ -1,5 +1,6 @@
 #include "pattern_edit_view.h"
 #include "platform/audio.h"
+#include "platform/input.h"
 #include "platform/power.h"
 #include "core/theme.h"
 #include "core/timing.h"
@@ -73,6 +74,11 @@ void PatternEditView::toggleStepAt(uint8_t step) {
 }
 
 void PatternEditView::handleNumber(uint8_t num) {
+    if (_sequencer.isPlaying() && Input::isFnHeld()) {
+        Pattern& pat = _project.patterns[_patternIndex];
+        uint8_t step = _sequencer.nearestStep(millis());
+        pat.steps[step] |= (1 << num);
+    }
     triggerSound(num);
 }
 
@@ -82,6 +88,8 @@ void PatternEditView::triggerSound(uint8_t sound) {
     if (!slot.occupied) {
         _character.setState(CHAR_ERROR);
         _character.say("empty");
+        _flashSound = sound;
+        _flashTime = millis();
         return;
     }
     Audio::triggerSound(slot.samples, slot.length, slot.sampleRate, slot.level * 255 / 100);
@@ -158,7 +166,8 @@ void PatternEditView::draw(Canvas& canvas) {
     // Trigger indicator
     if (_flashSound < NUM_SOUNDS && (millis() - _flashTime) < 1200) {
         int py = gridTopY + _flashSound * (cellH + cellGap) + cellH / 2 - 3;
-        canvas.setTextColor(theme.accent);
+        uint16_t arrowColor = _project.sounds[_flashSound].occupied ? theme.accent : theme.dim;
+        canvas.setTextColor(arrowColor);
         canvas.setTextDatum(top_right);
         canvas.drawString(">", gridLeftAdj, py);
     }

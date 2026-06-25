@@ -31,6 +31,7 @@ public:
     bool isPlaying() const { return _mode != SEQ_STOPPED; }
 
     uint32_t stepIntervalMs() const;
+    uint8_t nearestStep(uint32_t now) const;
 
 private:
     void fireStep();

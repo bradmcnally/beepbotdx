@@ -253,6 +253,7 @@ bool Storage::listWavFiles(const char* dir, char names[][32], uint8_t& count, ui
     while (entry && count < max) {
         if (!entry.isDirectory()) {
             const char* name = entry.name();
+            if (name[0] == '.') { entry = root.openNextFile(); continue; }
             size_t len = strlen(name);
             if (len > 4 && strcasecmp(name + len - 4, ".wav") == 0) {
                 strncpy(names[count], name, 31);

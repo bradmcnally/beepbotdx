@@ -12,3 +12,8 @@ void Memory::init() {
 uint32_t Memory::getSampleBudget() {
     return _sampleBudget;
 }
+
+uint32_t Memory::getFree() {
+    uint32_t freeHeap = ESP.getFreeHeap();
+    return freeHeap > 30000 ? freeHeap - 30000 : 0;
+}

@@ -47,6 +47,15 @@ uint32_t Sequencer::stepIntervalMs() const {
     return 60000 / _project->bpm / 4;
 }
 
+uint8_t Sequencer::nearestStep(uint32_t now) const {
+    uint32_t interval = stepIntervalMs();
+    uint32_t elapsed = now - _lastStepTime;
+    if (elapsed > interval / 2) {
+        return (_step + 1) % NUM_STEPS;
+    }
+    return _step;
+}
+
 void Sequencer::fireStep() {
     if (_stepCallback) _stepCallback(_step);
     if (!_callback) return;

@@ -23,7 +23,5 @@ private:
     Sequencer& _sequencer;
     uint8_t _cursor;
     bool _editRequested;
-    uint8_t _flashSlot;
-    uint32_t _flashTime;
     uint8_t _lastSongPos;
 };

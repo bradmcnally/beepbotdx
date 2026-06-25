@@ -41,36 +41,30 @@ void ProjectView::update(InputEvent event) {
         case INPUT_RIGHT:
             if (_cursor < 7) _cursor++;
             break;
-        case INPUT_UP:
-            if (_cursor >= 4) _cursor -= 4;
-            break;
-        case INPUT_DOWN:
-            if (_cursor < 4) _cursor += 4;
-            break;
         case INPUT_ENTER:
             if (_cursor == _currentSlot) {
-                // Already on this slot — just close
                 _closeRequested = true;
-            } else if (_slotExists[_cursor]) {
-                if (Storage::loadProject(_project, _cursor)) {
-                    _currentSlot = _cursor;
-                    snprintf(_statusMsg, sizeof(_statusMsg), "LOADED %d", _cursor + 1);
-                    _character.setState(CHAR_SUCCESS);
-                    _character.say("loaded!");
-                    _loaded = true;
-                } else {
-                    snprintf(_statusMsg, sizeof(_statusMsg), "LOAD FAIL");
-                    _character.setState(CHAR_ERROR);
-                    _character.say("oh no");
-                }
-                _statusTime = millis();
             } else {
-                // Switch to empty slot (new project)
-                Project::init(_project);
-                _currentSlot = _cursor;
-                snprintf(_statusMsg, sizeof(_statusMsg), "NEW %d", _cursor + 1);
-                _character.setState(CHAR_FLIP);
-                _loaded = true;
+                Storage::saveProject(_project, _currentSlot);
+                if (_slotExists[_cursor]) {
+                    if (Storage::loadProject(_project, _cursor)) {
+                        _currentSlot = _cursor;
+                        snprintf(_statusMsg, sizeof(_statusMsg), "LOADED %d", _cursor + 1);
+                        _character.setState(CHAR_SUCCESS);
+                        _character.say("loaded!");
+                        _loaded = true;
+                    } else {
+                        snprintf(_statusMsg, sizeof(_statusMsg), "LOAD FAIL");
+                        _character.setState(CHAR_ERROR);
+                        _character.say("oh no");
+                    }
+                } else {
+                    Project::init(_project);
+                    _currentSlot = _cursor;
+                    snprintf(_statusMsg, sizeof(_statusMsg), "NEW %d", _cursor + 1);
+                    _character.setState(CHAR_FLIP);
+                    _loaded = true;
+                }
                 _statusTime = millis();
             }
             break;
@@ -113,7 +107,7 @@ void ProjectView::draw(Canvas& canvas) {
     canvas.setTextSize(1);
     canvas.setTextDatum(top_left);
 
-    GridLayout grid = GridLayout::make(4, 2, 22);
+    GridLayout grid = GridLayout::make(8, 1, 3);
 
     for (uint8_t i = 0; i < 8; i++) {
         int x, y;
@@ -126,8 +120,8 @@ void ProjectView::draw(Canvas& canvas) {
             textColor = TFT_BLACK;
         } else if (_slotExists[i]) {
             Theme slotTheme = ThemeOps::getPreset(_slotTheme[i]);
-            bgColor = theme.dim;
-            textColor = slotTheme.accent;
+            bgColor = slotTheme.accent;
+            textColor = TFT_BLACK;
         } else {
             bgColor = theme.dark;
             textColor = 0x7BEF;

@@ -6,5 +6,6 @@ namespace Memory {
 
 void init();
 uint32_t getSampleBudget();
+uint32_t getFree();
 
 }

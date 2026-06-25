@@ -103,8 +103,10 @@ InputEvent Input::poll() {
                 case '0':  return INPUT_NUM0;
                 case '=':  return INPUT_PLUS;
                 case '-':  return INPUT_MINUS;
+                case '[':
+                case ']':
                 default:
-                    if (key >= 'a' && key <= 'z') {
+                    if (key == '[' || key == ']' || (key >= 'a' && key <= 'z')) {
                         lastChar = key;
                         return INPUT_CHAR;
                     }

@@ -87,6 +87,12 @@ InputEvent Input::poll() {
                 case SDLK_8:      return INPUT_NUM8;
                 case SDLK_9:      return INPUT_NUM9;
                 case SDLK_0:      return INPUT_NUM0;
+                case SDLK_LEFTBRACKET:
+                    lastChar = '[';
+                    return INPUT_CHAR;
+                case SDLK_RIGHTBRACKET:
+                    lastChar = ']';
+                    return INPUT_CHAR;
                 default:
                     if (ev.key.keysym.sym >= SDLK_a && ev.key.keysym.sym <= SDLK_z) {
                         lastChar = (char)ev.key.keysym.sym;

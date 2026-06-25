@@ -4,7 +4,7 @@
 #include "config.h"
 
 #define BLOOM_COLS ((SCREEN_WIDTH - 6) / 6)
-#define BLOOM_ROWS ((SCREEN_HEIGHT - 40) / 8)
+#define BLOOM_ROWS ((SCREEN_HEIGHT - 34) / 8)
 
 struct BloomCell {
     uint8_t energy;

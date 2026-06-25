@@ -9,3 +9,7 @@ void Memory::init() {
 uint32_t Memory::getSampleBudget() {
     return _sampleBudget;
 }
+
+uint32_t Memory::getFree() {
+    return _sampleBudget;
+}

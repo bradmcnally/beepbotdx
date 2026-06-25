@@ -183,7 +183,7 @@ void App::handleGlobalInput(InputEvent& event) {
         if (Input::isBHeld()) {
             if (event == INPUT_PLUS && _project.bpm < MAX_BPM) _project.bpm++;
             if (event == INPUT_MINUS && _project.bpm > MIN_BPM) _project.bpm--;
-            if (_currentScreen == SCREEN_PLAY) {
+            if (_currentScreen == SCREEN_PLAY || _currentScreen == SCREEN_SONG || _currentScreen == SCREEN_PATTERN_SELECT) {
                 char bpmMsg[10];
                 snprintf(bpmMsg, sizeof(bpmMsg), "bpm %d", _project.bpm);
                 _character.say(bpmMsg);
@@ -292,7 +292,9 @@ void App::render() {
     Theme theme = ThemeOps::getPreset(_project.themeIndex);
     canvas.fillScreen(theme.bg);
 
-    drawHeader(canvas, theme);
+    if (_currentScreen != SCREEN_PROJECT) {
+        drawHeader(canvas, theme);
+    }
     getView(_currentScreen)->draw(canvas);
 
     if (_helpOpen) drawHelp(canvas, theme);
