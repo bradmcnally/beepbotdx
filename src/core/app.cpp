@@ -26,9 +26,13 @@ void App::init(AppCallbacks callbacks) {
 void App::loadSlot(uint8_t slot) {
     _currentProjectSlot = slot;
     Storage::loadProject(_project, slot);
-    uint8_t r, g, b;
-    ThemeOps::getPresetRGB(_project.themeIndex, r, g, b);
-    LED::setColor(r, g, b);
+    if (_settings.ledMode != LED_OFF) {
+        uint8_t r, g, b;
+        ThemeOps::getPresetRGB(_project.themeIndex, r, g, b);
+        LED::setColor(r, g, b);
+    } else {
+        LED::off();
+    }
     getView(_currentScreen)->enter();
 }
 
@@ -54,7 +58,7 @@ void App::onStep(uint8_t step) {
         ThemeOps::getPresetRGB(app->_project.themeIndex, r, g, b);
         LED::setColor(r, g, b);
     } else {
-        if (app->_settings.ledMode == LED_BEAT) {
+        if (app->_settings.ledMode == LED_METRONOME) {
             LED::off();
         }
     }
@@ -89,9 +93,13 @@ void App::tick() {
 
     if (_ledPlaying && !_sequencer.isPlaying() && !_lowBattery) {
         _ledPlaying = false;
-        uint8_t r, g, b;
-        ThemeOps::getPresetRGB(_project.themeIndex, r, g, b);
-        LED::setColor(r, g, b);
+        if (_settings.ledMode != LED_OFF) {
+            uint8_t r, g, b;
+            ThemeOps::getPresetRGB(_project.themeIndex, r, g, b);
+            LED::setColor(r, g, b);
+        } else {
+            LED::off();
+        }
     }
 
     InputEvent event = Input::poll();
@@ -200,16 +208,19 @@ void App::handleGlobalInput(InputEvent& event) {
         return;
     }
 
-    // M key toggles LED metronome
+    // M key cycles LED mode
     if (event == INPUT_CHAR && Input::getChar() == 'm'
         && _currentScreen != SCREEN_SETTINGS
         && !textInput) {
+        _settings.ledMode = (LedMode)((_settings.ledMode + 1) % 3);
+        const char* names[] = {"led on", "led metro", "led off"};
+        _character.say(names[_settings.ledMode]);
         if (_settings.ledMode == LED_OFF) {
-            _settings.ledMode = LED_ON;
-            _character.say("led on");
+            LED::off();
         } else {
-            _settings.ledMode = LED_OFF;
-            _character.say("led off");
+            uint8_t r, g, b;
+            ThemeOps::getPresetRGB(_project.themeIndex, r, g, b);
+            LED::setColor(r, g, b);
         }
         if (_callbacks.saveSettings) _callbacks.saveSettings(_settings);
         event = INPUT_NONE;
@@ -459,23 +470,23 @@ void App::drawHelp(Canvas& canvas, const Theme& theme) {
     canvas.setTextSize(1);
 
     static const HelpLine soundHelp[] = {
-        {"ENTER", "open slot"}, {"SPACE", "audition"}, {"DEL", "clear"},
+        {"OK/CTRL", "open slot"}, {"SPACE", "audition"}, {"DEL", "clear"},
         {"I", "import wav"}, {"R", "rename"}, {"1-8", "audition"},
     };
     static const HelpLine trimHelp[] = {
         {"L/R", "adjust point"}, {"U/D", "switch start/end"}, {"SPACE", "audition"},
-        {"+/-", "volume"}, {"ENTER", "apply"}, {"ESC", "cancel"},
+        {"+/-", "volume"}, {"OK/CTRL", "apply"}, {"ESC", "cancel"},
     };
     static const HelpLine patSelectHelp[] = {
-        {"ENTER", "edit"}, {"SPACE", "audition"}, {"DEL", "clear"},
+        {"OK/CTRL", "edit"}, {"SPACE", "audition"}, {"DEL", "clear"},
         {"Fn+C", "copy"}, {"Fn+V", "paste"},
     };
     static const HelpLine patEditHelp[] = {
-        {"ENTER", "toggle step"}, {"SPACE", "play/stop"}, {"ESC", "back"},
+        {"OK/CTRL", "toggle step"}, {"SPACE", "play/stop"}, {"ESC", "back"},
         {"1-8", "audition"}, {"Fn+1-8", "live record"},
     };
     static const HelpLine songHelp[] = {
-        {"ENTER", "edit pattern"}, {"SPACE", "play song"}, {"DEL", "clear slot"},
+        {"OK/CTRL", "edit pattern"}, {"SPACE", "play song"}, {"DEL", "clear slot"},
         {"[ ]", "cycle pattern"},
     };
     static const HelpLine playHelp[] = {

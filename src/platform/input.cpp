@@ -73,7 +73,7 @@ InputEvent Input::poll() {
 
     // Check for first press (edge-triggered)
     if (M5Cardputer.Keyboard.isChange() && M5Cardputer.Keyboard.isPressed()) {
-        if (status.enter) { lastArrowKey = 0; return INPUT_ENTER; }
+        if (status.enter || status.ctrl) { lastArrowKey = 0; return INPUT_ENTER; }
         if (status.del)   { lastArrowKey = 0; return INPUT_BACK; }
         if (status.tab && !tabEventSent) { lastArrowKey = 0; tabEventSent = true; return INPUT_TAB; }
 

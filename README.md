@@ -1,22 +1,21 @@
 # beepbot dx
 
-A handheld sampler and tracker-style sequencer for the M5Stack Cardputer ADV (ESP32-S3).
+A handheld sampler and sequencer for the M5Stack Cardputer ADV.
 
-Record sounds with the built-in mic, load WAV files from SD, build patterns, arrange songs, and perform — all from a pocket-sized device with a tiny keyboard and a 240x135px display.
+Record sounds with the built-in mic, import WAV files from SD, build patterns, arrange songs, and perform — all from a pocket-sized device with a tiny keyboard and a 240x135px display.
 
 ## Features
 
-- **8 sound slots** — record via microphone or import WAV from SD card
-- **16-step sequencer** — 16 patterns, each with 8 tracks
+- **8 projects** - 8 color options
+- **8 sound slots** - 16kHz mono audio, 2 second max sample length, trim recorded or imported wav files
+- **16 pattern slots** - with copy/paste
+- **16-step sequencer** — 16 patterns, each with 8 tracks, 4-voice polyphony
 - **Song mode** — chain up to 16 patterns
-- **Live play** — trigger sounds and patterns in real time
-- **Waveform trim** — visual start/end point editing
-- **Bloom visualization** — reactive wave/ripple field driven by audio
-- **Character companion** — animated face that reacts to your actions
-- **Theme system** — multiple color palettes
-- **Project save/load** — persistent storage on SD card
-- **Screenshot capture** — save PNGs to SD card
-- **Desktop simulator** — full SDL2 build for development
+- **Live play** — trigger sounds and patterns in real time with playback visualization
+- **Settings** — auto-save, LED metronome mode, Confirm delete
+
+
+- BPM range: 60-240
 
 ## Architecture
 
@@ -25,6 +24,7 @@ src/
 ├── main.cpp                 # Hardware entry point (M5Stack)
 ├── config.h                 # Constants (sample rate, grid size, display)
 ├── core/                    # Platform-independent logic
+│   ├── app                  # Main application controller
 │   ├── sequencer            # Step sequencer + song playback
 │   ├── project              # Data model (sounds, patterns, songs)
 │   ├── bloom_field          # Visual bloom/ripple simulation
@@ -33,20 +33,21 @@ src/
 │   ├── canvas               # Drawing abstraction
 │   └── sound_slot           # Audio sample container
 ├── views/                   # Screen implementations
-│   ├── sound_view           # Record, trim, rename, list
-│   ├── pattern_select_view  # Pattern list + copy/paste
-│   ├── pattern_edit_view    # Step grid editor
-│   ├── song_view            # Song arrangement
+│   ├── sound_view           # Record, trim, rename, import, list
+│   ├── pattern_select_view  # Pattern grid + copy/paste/clear
+│   ├── pattern_edit_view    # Step grid editor + live record
+│   ├── song_view            # Song arrangement with playhead
 │   ├── play_view            # Live performance + bloom
-│   └── project_view         # Save/load/theme picker
+│   ├── project_view         # Save/load/delete (2x4 grid)
+│   └── settings_view        # Auto-save, LED, warnings
 ├── platform/                # Hardware HAL (M5Stack Cardputer)
-│   ├── audio, display, input, storage, power, memory, screenshot
+│   ├── audio, display, input, storage, power, memory, led, screenshot
 └── platform_desktop/        # Desktop HAL (SDL2)
     ├── main_desktop.cpp     # Desktop entry point
     ├── audio, display, input, storage, power, memory
 ```
 
-The two main files (`main.cpp` and `platform_desktop/main_desktop.cpp`) share identical event loops and rendering logic. Platform differences are isolated to the HAL layer.
+The two main files (`main.cpp` and `platform_desktop/main_desktop.cpp`) share event loops and rendering logic. Platform differences are isolated to the HAL layer.
 
 ## Building
 
@@ -58,8 +59,6 @@ Requires [PlatformIO](https://platformio.org/).
 pio run -e m5stack-cardputer
 pio run -e m5stack-cardputer -t upload
 ```
-
-Produces `beep.bin` for flashing.
 
 ### Desktop Simulator
 
@@ -92,24 +91,74 @@ Navigation uses a tab menu (hold TAB + arrows or tap to cycle).
 | TAB | Navigate screens |
 | S | Save project |
 | O | Open project |
+| G | Settings |
+| M | Cycle LED mode |
 | +/- | Volume |
 | B+/- | BPM |
 | Fn+/- | Brightness |
 | H | Help overlay |
 | SPACE | Play/audition |
-| ENTER | Select/confirm |
+| OK/CTRL | Select/confirm |
 | 1-8 | Trigger sounds |
 
 Press **H** on any screen for context-sensitive keyboard shortcuts.
 
+### Sound
+
+| Key | Action |
+|-----|--------|
+| OK/CTRL | Open slot |
+| SPACE | Audition |
+| DEL | Clear |
+| I | Import WAV |
+| R | Rename |
+| 1-8 | Audition slot |
+
+### Trim
+
+| Key | Action |
+|-----|--------|
+| L/R | Adjust trim point |
+| U/D | Switch between start/end point |
+| SPACE | Audition |
+| +/- | Volume |
+| OK/CTRL | Apply |
+| ESC | Cancel |
+
+### Pattern Select
+
+| Key | Action |
+|-----|--------|
+| OK/CTRL | Edit pattern |
+| SPACE | Audition |
+| DEL | Clear |
+| Fn+C | Copy |
+| Fn+V | Paste |
+
+### Pattern Edit
+
+| Key | Action |
+|-----|--------|
+| OK/CTRL | Toggle step |
+| SPACE | Play/stop |
+| ESC | Back |
+| 1-8 | Audition |
+| Fn+1-8 | Live record |
+
+### Song
+
+| Key | Action |
+|-----|--------|
+| OK/CTRL | Edit pattern |
+| SPACE | Play song |
+| DEL | Clear slot |
+| [ ] | Cycle pattern in slot |
+
+### Play
+
+| Key | Action |
+|-----|--------|
+| SPACE | Play/stop |
+| 1-8 | Audition |
+
 ## Constraints
-
-- 240x135px display, 5x7 bitmap font
-- 16kHz mono audio, 2 second max sample length
-- 8 sound slots, 16 patterns, 16 steps, 16 song positions
-- 4-voice polyphony
-- BPM range: 60-240
-
-## License
-
-All rights reserved.

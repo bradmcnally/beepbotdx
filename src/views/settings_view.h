@@ -6,7 +6,7 @@
 
 enum LedMode : uint8_t {
     LED_ON = 0,
-    LED_BEAT = 1,
+    LED_METRONOME = 1,
     LED_OFF = 2,
 };
 

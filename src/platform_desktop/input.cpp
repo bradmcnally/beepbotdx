@@ -70,7 +70,9 @@ InputEvent Input::poll() {
 
             lastArrowKey = SDL_SCANCODE_UNKNOWN;
             switch (ev.key.keysym.sym) {
-                case SDLK_RETURN: return INPUT_ENTER;
+                case SDLK_RETURN:
+                case SDLK_RCTRL:
+                case SDLK_LCTRL:  return INPUT_ENTER;
                 case SDLK_BACKSPACE: return INPUT_BACK;
                 case SDLK_TAB:    return INPUT_TAB;
                 case SDLK_SPACE:  return INPUT_SPACE;

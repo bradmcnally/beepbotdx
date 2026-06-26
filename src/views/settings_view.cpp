@@ -63,7 +63,7 @@ void SettingsView::draw(Canvas& canvas) {
     const char* values[NUM_ITEMS];
 
     values[0] = _settings.autoSave ? "ON" : "OFF";
-    static const char* ledNames[] = {"ON", "BEAT ONLY", "OFF"};
+    static const char* ledNames[] = {"ON", "METRONOME", "OFF"};
     values[1] = ledNames[_settings.ledMode];
     values[2] = _settings.confirmDelete ? "ON" : "OFF";
 
