@@ -19,6 +19,8 @@ void App::init(AppCallbacks callbacks) {
     _sequencer.init(&_project);
     _sequencer.setCallback(onTrigger);
     _sequencer.setStepCallback(onStep);
+    _character.noteInput();
+    GlobalSettings::instance = &_settings;
 }
 
 void App::loadSlot(uint8_t slot) {
@@ -32,6 +34,18 @@ void App::loadSlot(uint8_t slot) {
 
 void App::onStep(uint8_t step) {
     App* app = _instance;
+
+    // Reset trigger counter for jamming detection
+    app->_stepTriggerCount = 0;
+
+    // Dancing on beat
+    if (step % 2 == 0) {
+        app->_character.setState(CHAR_DANCE_L);
+    } else {
+        app->_character.setState(CHAR_DANCE_R);
+    }
+
+    // LED
     if (app->_lowBattery) return;
     if (app->_settings.ledMode == LED_OFF) return;
     app->_ledPlaying = true;
@@ -52,7 +66,10 @@ void App::onTrigger(uint8_t soundIndex) {
         SoundSlot& slot = app->_project.sounds[soundIndex];
         Audio::triggerSound(slot.samples, slot.length, slot.sampleRate, slot.level * 255 / 100);
     }
-    app->_character.setState(CHAR_BEAT);
+    app->_stepTriggerCount++;
+    if (app->_stepTriggerCount >= 3) {
+        app->_character.setState(CHAR_JAMMING);
+    }
     app->_playView.onTrigger(soundIndex);
 }
 
@@ -78,6 +95,14 @@ void App::tick() {
     }
 
     InputEvent event = Input::poll();
+
+    if (event != INPUT_NONE) {
+        if (_character.isSleeping()) {
+            _character.wake();
+        } else {
+            _character.noteInput();
+        }
+    }
 
     handleGlobalInput(event);
 
@@ -186,6 +211,7 @@ void App::handleGlobalInput(InputEvent& event) {
             _settings.ledMode = LED_OFF;
             _character.say("led off");
         }
+        if (_callbacks.saveSettings) _callbacks.saveSettings(_settings);
         event = INPUT_NONE;
         return;
     }
@@ -298,6 +324,7 @@ void App::handleTransitions() {
     if (_currentScreen == SCREEN_SETTINGS) {
         if (_settingsView.shouldClose()) {
             _settingsView.clearClose();
+            if (_callbacks.saveSettings) _callbacks.saveSettings(_settings);
             switchScreen(_screenBeforeSettings);
         }
     }
@@ -445,11 +472,11 @@ void App::drawHelp(Canvas& canvas, const Theme& theme) {
     };
     static const HelpLine patEditHelp[] = {
         {"ENTER", "toggle step"}, {"SPACE", "play/stop"}, {"ESC", "back"},
-        {"1-8", "audition"},
+        {"1-8", "audition"}, {"Fn+1-8", "live record"},
     };
     static const HelpLine songHelp[] = {
         {"ENTER", "edit pattern"}, {"SPACE", "play song"}, {"DEL", "clear slot"},
-        {"N/P", "cycle pattern"},
+        {"[ ]", "cycle pattern"},
     };
     static const HelpLine playHelp[] = {
         {"SPACE", "play/stop"}, {"1-8", "audition"},
@@ -475,7 +502,7 @@ void App::drawHelp(Canvas& canvas, const Theme& theme) {
         case SCREEN_PATTERN_SELECT:
             lines = patSelectHelp; lineCount = 5; screenTitle = "PATTERN"; break;
         case SCREEN_PATTERN_EDIT:
-            lines = patEditHelp; lineCount = 4; screenTitle = "PATTERN EDIT"; break;
+            lines = patEditHelp; lineCount = 5; screenTitle = "PATTERN EDIT"; break;
         case SCREEN_SONG:
             lines = songHelp; lineCount = 4; screenTitle = "SONG"; break;
         case SCREEN_PLAY:
@@ -483,7 +510,7 @@ void App::drawHelp(Canvas& canvas, const Theme& theme) {
         default: return;
     }
 
-    int totalLines = lineCount + (showGlobals ? 1 + 6 : 0);
+    int totalLines = lineCount + (showGlobals ? 1 + 8 : 0);
     const int visibleLines = 12;
     int maxScroll = totalLines > visibleLines ? totalLines - visibleLines : 0;
     if (_helpScroll > maxScroll) _helpScroll = maxScroll;
@@ -519,7 +546,7 @@ void App::drawHelp(Canvas& canvas, const Theme& theme) {
         }
         lineIdx++;
         canvas.setTextDatum(top_left);
-        for (int i = 0; i < 6; i++) {
+        for (int i = 0; i < 8; i++) {
             if (lineIdx >= _helpScroll && lineIdx < _helpScroll + visibleLines) {
                 canvas.setTextColor(theme.accent);
                 canvas.drawString(globals[i].key, 14, y);
@@ -572,10 +599,10 @@ void App::drawTabMenu(Canvas& canvas, const Theme& theme) {
 
     canvas.setTextSize(1);
     canvas.setTextDatum(top_right);
-    canvas.setTextColor(theme.dim);
+    canvas.setTextColor(theme.accent);
     char slotStr[8];
-    snprintf(slotStr, sizeof(slotStr), "P%02d", _currentProjectSlot + 1);
-    canvas.drawString(slotStr, SCREEN_WIDTH - 8, 6);
+    snprintf(slotStr, sizeof(slotStr), "PROJ %02d", _currentProjectSlot + 1);
+    canvas.drawString(slotStr, SCREEN_WIDTH - 8, 7);
 }
 
 View* App::getView(Screen s) {

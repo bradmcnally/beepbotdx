@@ -34,6 +34,7 @@ struct AppCallbacks {
     void (*saveSlot)(uint8_t slot);
     void (*setBrightness)(uint8_t percent);
     bool (*onScreenshot)();
+    void (*saveSettings)(const GlobalSettings& settings);
 };
 
 class App {
@@ -44,6 +45,7 @@ public:
 
     Project& getProject() { return _project; }
     uint8_t& getCurrentSlot() { return _currentProjectSlot; }
+    GlobalSettings& getSettings() { return _settings; }
 
 private:
     void switchScreen(Screen s);
@@ -60,6 +62,7 @@ private:
 
     bool _lowBattery = false;
     bool _ledPlaying = false;
+    uint8_t _stepTriggerCount = 0;
 
     Project _project;
     Character _character;

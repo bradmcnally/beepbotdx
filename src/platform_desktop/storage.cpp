@@ -249,6 +249,13 @@ bool Storage::projectExists(uint8_t slot) {
     return false;
 }
 
+bool Storage::deleteProject(uint8_t slot) {
+    if (!_ready || slot >= 8) return false;
+    char path[80];
+    projectPath(slot, path, sizeof(path));
+    return remove(path) == 0;
+}
+
 uint8_t Storage::loadProjectTheme(uint8_t slot) {
     if (!_ready || slot >= 8) return 0;
     char path[80];

@@ -9,7 +9,7 @@
 
 ProjectView::ProjectView(Project& project, Character& character, uint8_t& currentSlot)
     : _project(project), _character(character), _currentSlot(currentSlot),
-      _cursor(0), _closeRequested(false), _loaded(false), _confirming(false), _statusTime(0) {
+      _cursor(0), _closeRequested(false), _loaded(false), _confirming(false), _deleting(false), _statusTime(0) {
     _statusMsg[0] = '\0';
     memset(_slotExists, 0, sizeof(_slotExists));
 }
@@ -19,6 +19,7 @@ void ProjectView::enter() {
     _closeRequested = false;
     _loaded = false;
     _confirming = false;
+    _deleting = false;
     _statusMsg[0] = '\0';
     _character.setState(CHAR_IDLE);
 
@@ -48,6 +49,29 @@ void ProjectView::update(InputEvent event) {
                 break;
             case INPUT_ESC:
                 _confirming = false;
+                _character.setState(CHAR_IDLE);
+                break;
+            default:
+                break;
+        }
+        return;
+    }
+
+    if (_deleting) {
+        switch (event) {
+            case INPUT_ENTER:
+                Storage::deleteProject(_cursor);
+                _slotExists[_cursor] = false;
+                _deleting = false;
+                if (_cursor == _currentSlot) {
+                    Project::init(_project);
+                }
+                _character.setState(CHAR_SUCCESS);
+                _character.say("deleted");
+                break;
+            case INPUT_ESC:
+            case INPUT_BACK:
+                _deleting = false;
                 _character.setState(CHAR_IDLE);
                 break;
             default:
@@ -105,6 +129,12 @@ void ProjectView::update(InputEvent event) {
             _project.themeIndex = (_project.themeIndex + ThemeOps::NUM_PRESETS - 1) % ThemeOps::NUM_PRESETS;
             _slotTheme[_currentSlot] = _project.themeIndex;
             { uint8_t r, g, b; ThemeOps::getPresetRGB(_project.themeIndex, r, g, b); LED::setColor(r, g, b); }
+            break;
+        case INPUT_BACK:
+            if (_slotExists[_cursor]) {
+                _deleting = true;
+                _character.say("delete?");
+            }
             break;
         case INPUT_ESC:
             _closeRequested = true;
@@ -195,6 +225,24 @@ void ProjectView::draw(Canvas& canvas) {
 
         canvas.setTextColor(theme.dim);
         canvas.drawString("ENTER:save  DEL:discard", boxX + boxW / 2, boxY + 22);
+    }
+
+    if (_deleting) {
+        const int boxW = 150;
+        const int boxH = 40;
+        const int boxX = (SCREEN_WIDTH - boxW) / 2;
+        const int boxY = (SCREEN_HEIGHT - boxH) / 2;
+        canvas.fillRect(boxX, boxY, boxW, boxH, TFT_BLACK);
+        canvas.drawRect(boxX, boxY, boxW, boxH, theme.accent);
+
+        canvas.setTextColor(TFT_WHITE);
+        canvas.setTextDatum(top_center);
+        char msg[24];
+        snprintf(msg, sizeof(msg), "Delete project %d?", _cursor + 1);
+        canvas.drawString(msg, boxX + boxW / 2, boxY + 6);
+
+        canvas.setTextColor(theme.dim);
+        canvas.drawString("ENTER:confirm  ESC:cancel", boxX + boxW / 2, boxY + 22);
     }
 
     if (_statusMsg[0] && (millis() - _statusTime < 2000)) {

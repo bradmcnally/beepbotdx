@@ -2,6 +2,8 @@
 #include "core/theme.h"
 #include "config.h"
 
+GlobalSettings* GlobalSettings::instance = nullptr;
+
 SettingsView::SettingsView(Project& project, Character& character, GlobalSettings& settings)
     : _project(project), _character(character), _settings(settings),
       _cursor(0), _closeRequested(false) {}
@@ -34,6 +36,9 @@ void SettingsView::update(InputEvent event) {
                 }
                 const char* names[] = {"on", "beat", "off"};
                 _character.say(names[_settings.ledMode]);
+            } else if (_cursor == 2) {
+                _settings.confirmDelete = !_settings.confirmDelete;
+                _character.say(_settings.confirmDelete ? "on" : "off");
             }
             break;
         case INPUT_ESC:
@@ -54,12 +59,13 @@ void SettingsView::draw(Canvas& canvas) {
     const int labelX = 20;
     const int valueX = 140;
 
-    const char* labels[] = {"AUTO-SAVE", "LED MODE"};
+    const char* labels[] = {"AUTO-SAVE", "LED MODE", "WARNINGS"};
     const char* values[NUM_ITEMS];
 
     values[0] = _settings.autoSave ? "ON" : "OFF";
     static const char* ledNames[] = {"ON", "BEAT ONLY", "OFF"};
     values[1] = ledNames[_settings.ledMode];
+    values[2] = _settings.confirmDelete ? "ON" : "OFF";
 
     for (uint8_t i = 0; i < NUM_ITEMS; i++) {
         int y = startY + i * itemH;

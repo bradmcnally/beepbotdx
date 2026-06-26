@@ -301,6 +301,13 @@ bool Storage::projectExists(uint8_t slot) {
     return true;
 }
 
+bool Storage::deleteProject(uint8_t slot) {
+    if (!_sdReady || slot >= 8) return false;
+    char path[48];
+    projectPath(slot, path, sizeof(path));
+    return SD.remove(path);
+}
+
 uint8_t Storage::loadProjectTheme(uint8_t slot) {
     if (!_sdReady || slot >= 8) return 0;
     char path[48];

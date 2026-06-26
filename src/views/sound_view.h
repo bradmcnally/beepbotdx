@@ -76,4 +76,7 @@ private:
     uint32_t _playbackLength;
     uint32_t _playbackRate;
     bool _playbackActive;
+
+    // Delete confirmation
+    bool _confirmingDelete;
 };

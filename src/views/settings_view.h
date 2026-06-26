@@ -13,6 +13,9 @@ enum LedMode : uint8_t {
 struct GlobalSettings {
     bool autoSave = false;
     LedMode ledMode = LED_ON;
+    bool confirmDelete = true;
+
+    static GlobalSettings* instance;
 };
 
 class SettingsView : public View {
@@ -33,5 +36,5 @@ private:
     uint8_t _cursor = 0;
     bool _closeRequested = false;
 
-    static const uint8_t NUM_ITEMS = 2;
+    static const uint8_t NUM_ITEMS = 3;
 };

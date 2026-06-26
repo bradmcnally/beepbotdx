@@ -1,4 +1,5 @@
 #include "sound_view.h"
+#include "views/settings_view.h"
 #include "platform/audio.h"
 #include "platform/input.h"
 #include "platform/storage.h"
@@ -40,6 +41,7 @@ SoundView::SoundView(Project& project, Character& character)
     _playbackStart = 0;
     _playbackLength = 0;
     _playbackRate = SAMPLE_RATE;
+    _confirmingDelete = false;
 }
 
 void SoundView::enter() {
@@ -52,6 +54,19 @@ void SoundView::update(InputEvent event) {
     if (_subState != STATE_TRIM && _subState != STATE_RENAME && event >= INPUT_NUM1 && event <= INPUT_NUM8) {
         uint8_t idx = event - INPUT_NUM1;
         triggerSlot(idx);
+        return;
+    }
+
+    if (_confirmingDelete) {
+        if (event == INPUT_ENTER) {
+            SoundSlotOps::free(_project.sounds[_cursor]);
+            _character.setState(CHAR_SUCCESS);
+            _character.say("cleared");
+            _confirmingDelete = false;
+        } else if (event == INPUT_ESC || event == INPUT_BACK) {
+            _confirmingDelete = false;
+            _character.setState(CHAR_IDLE);
+        }
         return;
     }
 
@@ -101,9 +116,13 @@ void SoundView::update(InputEvent event) {
                     break;
                 case INPUT_BACK:
                     if (_project.sounds[_cursor].occupied) {
-                        SoundSlotOps::free(_project.sounds[_cursor]);
-                        _character.setState(CHAR_SUCCESS);
-                        _character.say("cleared");
+                        if (GlobalSettings::instance && GlobalSettings::instance->confirmDelete) {
+                            _confirmingDelete = true;
+                        } else {
+                            SoundSlotOps::free(_project.sounds[_cursor]);
+                            _character.setState(CHAR_SUCCESS);
+                            _character.say("cleared");
+                        }
                     }
                     break;
                 case INPUT_CHAR: {
@@ -114,6 +133,16 @@ void SoundView::update(InputEvent event) {
                         _renameLen = strlen(_renameBuffer);
                         _subState = STATE_RENAME;
                         _character.setState(CHAR_FOCUSED);
+                    } else if (ch == 'i') {
+                        _fileCursor = 0;
+                        if (!Storage::isReady()) {
+                            _character.setState(CHAR_ERROR);
+                        } else if (Storage::listWavFiles("/beepbotdx/samples", _wavFiles, _wavFileCount, 64) && _wavFileCount > 0) {
+                            _subState = STATE_LOAD_BROWSER;
+                            _character.setState(CHAR_FOCUSED);
+                        } else {
+                            _character.setState(CHAR_ERROR);
+                        }
                     }
                     break;
                 }
@@ -273,9 +302,11 @@ void SoundView::update(InputEvent event) {
                     if (Storage::loadWav(_project.sounds[_cursor], path)) {
                         snprintf(_statusMsg, sizeof(_statusMsg), "OK: %s", path);
                         _character.setState(CHAR_SUCCESS);
+                        _character.say("nice one");
                     } else {
                         snprintf(_statusMsg, sizeof(_statusMsg), "FAIL: %s", path);
                         _character.setState(CHAR_ERROR);
+                        _character.say("oh no");
                     }
                     _statusTime = millis();
                     _subState = STATE_LIST;
@@ -408,6 +439,22 @@ void SoundView::draw(Canvas& canvas) {
                 canvas.setTextColor(theme.highlight);
                 canvas.setTextDatum(top_right);
                 canvas.drawString(_statusMsg, SCREEN_WIDTH - 4, SCREEN_HEIGHT - 10);
+            }
+
+            if (_confirmingDelete) {
+                const int boxW = 150;
+                const int boxH = 40;
+                const int boxX = (SCREEN_WIDTH - boxW) / 2;
+                const int boxY = (SCREEN_HEIGHT - boxH) / 2;
+                canvas.fillRect(boxX, boxY, boxW, boxH, TFT_BLACK);
+                canvas.drawRect(boxX, boxY, boxW, boxH, theme.accent);
+
+                canvas.setTextColor(TFT_WHITE);
+                canvas.setTextDatum(top_center);
+                canvas.drawString("Delete sound?", boxX + boxW / 2, boxY + 6);
+
+                canvas.setTextColor(theme.dim);
+                canvas.drawString("ENTER:confirm  ESC:cancel", boxX + boxW / 2, boxY + 22);
             }
             break;
         }

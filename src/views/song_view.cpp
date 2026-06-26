@@ -85,6 +85,7 @@ void SongView::update(InputEvent event) {
                 if (hasContent) {
                     _sequencer.playSong(0);
                     _character.setState(CHAR_PLAYING);
+                    _character.say("let's go!");
                     _lastSongPos = 0xFF;
                 } else {
                     _character.setState(CHAR_ERROR);

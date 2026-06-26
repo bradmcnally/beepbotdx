@@ -47,6 +47,7 @@ void PlayView::update(InputEvent event) {
             } else {
                 _sequencer.playSong(0);
                 _character.setState(CHAR_PLAYING);
+                _character.say("let's go!");
             }
             break;
         case INPUT_NUM1: case INPUT_NUM2: case INPUT_NUM3: case INPUT_NUM4:

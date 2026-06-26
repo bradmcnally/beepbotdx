@@ -30,6 +30,29 @@ static void onSaveSlot(uint8_t slot) {
     saveLastSlot(slot);
 }
 
+static void loadSettings(GlobalSettings& settings) {
+    FILE* f = fopen("beepbotdx_data/settings", "rb");
+    if (!f) return;
+    uint8_t buf[3];
+    size_t n = fread(buf, 1, 3, f);
+    if (n >= 2) {
+        settings.autoSave = buf[0] != 0;
+        settings.ledMode = (LedMode)(buf[1] % 3);
+    }
+    if (n >= 3) {
+        settings.confirmDelete = buf[2] != 0;
+    }
+    fclose(f);
+}
+
+static void onSaveSettings(const GlobalSettings& settings) {
+    FILE* f = fopen("beepbotdx_data/settings", "wb");
+    if (!f) return;
+    uint8_t buf[3] = { (uint8_t)settings.autoSave, (uint8_t)settings.ledMode, (uint8_t)settings.confirmDelete };
+    fwrite(buf, 1, 3, f);
+    fclose(f);
+}
+
 int main(int argc, char* argv[]) {
     (void)argc; (void)argv;
 
@@ -41,7 +64,9 @@ int main(int argc, char* argv[]) {
 
     AppCallbacks callbacks = {};
     callbacks.saveSlot = onSaveSlot;
+    callbacks.saveSettings = onSaveSettings;
     app.init(callbacks);
+    loadSettings(app.getSettings());
     app.loadSlot(loadLastSlot());
 
     while (!Input::shouldQuit()) {

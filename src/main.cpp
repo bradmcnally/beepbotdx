@@ -31,6 +31,14 @@ static void onSetBrightness(uint8_t percent) {
     brightnessChangeTime = millis();
 }
 
+static void onSaveSettings(const GlobalSettings& settings) {
+    prefs.begin("beepbotdx", false);
+    prefs.putBool("autoSave", settings.autoSave);
+    prefs.putUChar("ledMode", (uint8_t)settings.ledMode);
+    prefs.putBool("confirmDel", settings.confirmDelete);
+    prefs.end();
+}
+
 static bool onScreenshot() {
 #if ENABLE_SCREENSHOTS
     takeScreenshot();
@@ -54,6 +62,9 @@ void setup() {
     prefs.begin("beepbotdx", false);
     displayBrightness = prefs.getUChar("brightness", 80);
     uint8_t lastSlot = prefs.getUChar("lastSlot", 0);
+    bool autoSave = prefs.getBool("autoSave", false);
+    uint8_t ledMode = prefs.getUChar("ledMode", 0);
+    bool confirmDel = prefs.getBool("confirmDel", true);
     prefs.end();
     M5Cardputer.Display.setBrightness((displayBrightness * 255) / 100);
 
@@ -61,7 +72,11 @@ void setup() {
     callbacks.saveSlot = onSaveSlot;
     callbacks.setBrightness = onSetBrightness;
     callbacks.onScreenshot = onScreenshot;
+    callbacks.saveSettings = onSaveSettings;
     app.init(callbacks);
+    app.getSettings().autoSave = autoSave;
+    app.getSettings().ledMode = (LedMode)ledMode;
+    app.getSettings().confirmDelete = confirmDel;
     app.loadSlot(lastSlot);
 }
 

@@ -27,6 +27,7 @@ private:
     bool _closeRequested;
     bool _loaded;
     bool _confirming;
+    bool _deleting;
     bool _slotExists[8];
     uint8_t _slotTheme[8];
     uint16_t _slotBpm[8];

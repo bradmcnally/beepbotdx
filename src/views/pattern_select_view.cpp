@@ -1,4 +1,5 @@
 #include "pattern_select_view.h"
+#include "views/settings_view.h"
 #include "platform/input.h"
 #include "core/theme.h"
 #include "core/timing.h"
@@ -9,7 +10,7 @@
 PatternSelectView::PatternSelectView(Project& project, Character& character, Sequencer& sequencer)
     : _project(project), _character(character), _sequencer(sequencer),
       _cursor(0), _editRequested(false), _flashPattern(0xFF), _flashTime(0),
-      _clipboard{}, _hasClipboard(false) {}
+      _clipboard{}, _hasClipboard(false), _confirmingDelete(false) {}
 
 void PatternSelectView::enter() {
     _editRequested = false;
@@ -20,6 +21,19 @@ void PatternSelectView::update(InputEvent event) {
     if (!_sequencer.isPlaying() &&
         (_character.getState() == CHAR_PLAYING || _character.getState() == CHAR_BEAT)) {
         _character.setState(CHAR_IDLE);
+    }
+
+    if (_confirmingDelete) {
+        if (event == INPUT_ENTER) {
+            memset(_project.patterns[_cursor].steps, 0, NUM_STEPS);
+            _character.setState(CHAR_SUCCESS);
+            _character.say("cleared");
+            _confirmingDelete = false;
+        } else if (event == INPUT_ESC || event == INPUT_BACK) {
+            _confirmingDelete = false;
+            _character.setState(CHAR_IDLE);
+        }
+        return;
     }
 
     switch (event) {
@@ -41,9 +55,13 @@ void PatternSelectView::update(InputEvent event) {
                 if (_project.patterns[_cursor].steps[s] != 0) hasSteps = true;
             }
             if (hasSteps) {
-                memset(_project.patterns[_cursor].steps, 0, NUM_STEPS);
-                _character.setState(CHAR_SUCCESS);
-                _character.say("cleared");
+                if (GlobalSettings::instance && GlobalSettings::instance->confirmDelete) {
+                    _confirmingDelete = true;
+                } else {
+                    memset(_project.patterns[_cursor].steps, 0, NUM_STEPS);
+                    _character.setState(CHAR_SUCCESS);
+                    _character.say("cleared");
+                }
             }
             break;
         }
@@ -135,6 +153,22 @@ void PatternSelectView::draw(Canvas& canvas) {
         char label[5];
         snprintf(label, sizeof(label), "%02d", i + 1);
         canvas.drawString(label, x + 4, y + 4);
+    }
+
+    if (_confirmingDelete) {
+        const int boxW = 150;
+        const int boxH = 40;
+        const int boxX = (SCREEN_WIDTH - boxW) / 2;
+        const int boxY = (SCREEN_HEIGHT - boxH) / 2;
+        canvas.fillRect(boxX, boxY, boxW, boxH, TFT_BLACK);
+        canvas.drawRect(boxX, boxY, boxW, boxH, theme.accent);
+
+        canvas.setTextColor(TFT_WHITE);
+        canvas.setTextDatum(top_center);
+        canvas.drawString("Clear pattern?", boxX + boxW / 2, boxY + 6);
+
+        canvas.setTextColor(theme.dim);
+        canvas.drawString("ENTER:confirm  ESC:cancel", boxX + boxW / 2, boxY + 22);
     }
 }
 
