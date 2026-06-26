@@ -9,7 +9,7 @@
 
 ProjectView::ProjectView(Project& project, Character& character, uint8_t& currentSlot)
     : _project(project), _character(character), _currentSlot(currentSlot),
-      _cursor(0), _closeRequested(false), _loaded(false), _statusTime(0) {
+      _cursor(0), _closeRequested(false), _loaded(false), _confirming(false), _statusTime(0) {
     _statusMsg[0] = '\0';
     memset(_slotExists, 0, sizeof(_slotExists));
 }
@@ -18,6 +18,7 @@ void ProjectView::enter() {
     _cursor = _currentSlot;
     _closeRequested = false;
     _loaded = false;
+    _confirming = false;
     _statusMsg[0] = '\0';
     _character.setState(CHAR_IDLE);
 
@@ -34,6 +35,27 @@ void ProjectView::enter() {
 }
 
 void ProjectView::update(InputEvent event) {
+    if (_confirming) {
+        switch (event) {
+            case INPUT_ENTER:
+                Storage::saveProject(_project, _currentSlot);
+                _confirming = false;
+                doSwitch();
+                break;
+            case INPUT_BACK:
+                _confirming = false;
+                doSwitch();
+                break;
+            case INPUT_ESC:
+                _confirming = false;
+                _character.setState(CHAR_IDLE);
+                break;
+            default:
+                break;
+        }
+        return;
+    }
+
     switch (event) {
         case INPUT_LEFT:
             if (_cursor % 2 > 0) _cursor--;
@@ -53,27 +75,8 @@ void ProjectView::update(InputEvent event) {
             if (_cursor == _currentSlot) {
                 _closeRequested = true;
             } else {
-                Storage::saveProject(_project, _currentSlot);
-                if (_slotExists[_cursor]) {
-                    if (Storage::loadProject(_project, _cursor)) {
-                        _currentSlot = _cursor;
-                        snprintf(_statusMsg, sizeof(_statusMsg), "LOADED %d", _cursor + 1);
-                        _character.setState(CHAR_SUCCESS);
-                        _character.say("loaded!");
-                        _loaded = true;
-                    } else {
-                        snprintf(_statusMsg, sizeof(_statusMsg), "LOAD FAIL");
-                        _character.setState(CHAR_ERROR);
-                        _character.say("oh no");
-                    }
-                } else {
-                    Project::init(_project);
-                    _currentSlot = _cursor;
-                    snprintf(_statusMsg, sizeof(_statusMsg), "NEW %d", _cursor + 1);
-                    _character.setState(CHAR_FLIP);
-                    _loaded = true;
-                }
-                _statusTime = millis();
+                _confirming = true;
+                _character.say("unsaved!");
             }
             break;
         case INPUT_SPACE: {
@@ -108,6 +111,25 @@ void ProjectView::update(InputEvent event) {
             break;
         default:
             break;
+    }
+}
+
+void ProjectView::doSwitch() {
+    if (_slotExists[_cursor]) {
+        if (Storage::loadProject(_project, _cursor)) {
+            _currentSlot = _cursor;
+            _character.setState(CHAR_SUCCESS);
+            _character.say("loaded!");
+            _loaded = true;
+        } else {
+            _character.setState(CHAR_ERROR);
+            _character.say("oh no");
+        }
+    } else {
+        Project::init(_project);
+        _currentSlot = _cursor;
+        _character.setState(CHAR_FLIP);
+        _loaded = true;
     }
 }
 
@@ -157,6 +179,22 @@ void ProjectView::draw(Canvas& canvas) {
         } else {
             canvas.drawString("empty", x + 4, y + 14);
         }
+    }
+
+    if (_confirming) {
+        const int boxW = 140;
+        const int boxH = 40;
+        const int boxX = (SCREEN_WIDTH - boxW) / 2;
+        const int boxY = (SCREEN_HEIGHT - boxH) / 2;
+        canvas.fillRect(boxX, boxY, boxW, boxH, TFT_BLACK);
+        canvas.drawRect(boxX, boxY, boxW, boxH, theme.accent);
+
+        canvas.setTextColor(TFT_WHITE);
+        canvas.setTextDatum(top_center);
+        canvas.drawString("Unsaved changes!", boxX + boxW / 2, boxY + 6);
+
+        canvas.setTextColor(theme.dim);
+        canvas.drawString("ENTER:save  DEL:discard", boxX + boxW / 2, boxY + 22);
     }
 
     if (_statusMsg[0] && (millis() - _statusTime < 2000)) {

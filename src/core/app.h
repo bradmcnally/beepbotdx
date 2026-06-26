@@ -18,6 +18,7 @@
 #include "views/song_view.h"
 #include "views/play_view.h"
 #include "views/project_view.h"
+#include "views/settings_view.h"
 
 enum Screen {
     SCREEN_SOUND,
@@ -26,6 +27,7 @@ enum Screen {
     SCREEN_SONG,
     SCREEN_PLAY,
     SCREEN_PROJECT,
+    SCREEN_SETTINGS,
 };
 
 struct AppCallbacks {
@@ -71,8 +73,11 @@ private:
     PlayView _playView{_project, _character, _sequencer};
     ProjectView _projectView{_project, _character, _currentProjectSlot};
 
+    GlobalSettings _settings;
+    SettingsView _settingsView{_project, _character, _settings};
     Screen _currentScreen = SCREEN_SOUND;
     Screen _screenBeforeProject = SCREEN_SOUND;
+    Screen _screenBeforeSettings = SCREEN_SOUND;
     Screen _screenBeforePatternEdit = SCREEN_PATTERN_SELECT;
 
     // Help overlay

@@ -33,13 +33,16 @@ void App::loadSlot(uint8_t slot) {
 void App::onStep(uint8_t step) {
     App* app = _instance;
     if (app->_lowBattery) return;
+    if (app->_settings.ledMode == LED_OFF) return;
     app->_ledPlaying = true;
     if (step % 4 == 0) {
         uint8_t r, g, b;
         ThemeOps::getPresetRGB(app->_project.themeIndex, r, g, b);
         LED::setColor(r, g, b);
     } else {
-        LED::off();
+        if (app->_settings.ledMode == LED_BEAT) {
+            LED::off();
+        }
     }
 }
 
@@ -153,9 +156,36 @@ void App::handleGlobalInput(InputEvent& event) {
     // O key opens project picker
     if (event == INPUT_CHAR && Input::getChar() == 'o'
         && _currentScreen != SCREEN_PROJECT
+        && _currentScreen != SCREEN_SETTINGS
         && !textInput) {
         _screenBeforeProject = _currentScreen;
         switchScreen(SCREEN_PROJECT);
+        event = INPUT_NONE;
+        return;
+    }
+
+    // G key opens settings
+    if (event == INPUT_CHAR && Input::getChar() == 'g'
+        && _currentScreen != SCREEN_PROJECT
+        && _currentScreen != SCREEN_SETTINGS
+        && !textInput) {
+        _screenBeforeSettings = _currentScreen;
+        switchScreen(SCREEN_SETTINGS);
+        event = INPUT_NONE;
+        return;
+    }
+
+    // M key toggles LED metronome
+    if (event == INPUT_CHAR && Input::getChar() == 'm'
+        && _currentScreen != SCREEN_SETTINGS
+        && !textInput) {
+        if (_settings.ledMode == LED_OFF) {
+            _settings.ledMode = LED_ON;
+            _character.say("led on");
+        } else {
+            _settings.ledMode = LED_OFF;
+            _character.say("led off");
+        }
         event = INPUT_NONE;
         return;
     }
@@ -206,7 +236,7 @@ void App::handleGlobalInput(InputEvent& event) {
 
     // TAB menu
     if (event == INPUT_TAB && !_tabMenuOpen && _currentScreen != SCREEN_PROJECT
-        && !textInput) {
+        && _currentScreen != SCREEN_SETTINGS && !textInput) {
         _tabMenuOpen = true;
         _tabMenuVisible = false;
         _tabMenuMoved = false;
@@ -262,6 +292,13 @@ void App::handleTransitions() {
             _projectView.clearLoad();
             if (_callbacks.saveSlot) _callbacks.saveSlot(_currentProjectSlot);
             switchScreen(SCREEN_SOUND);
+        }
+    }
+
+    if (_currentScreen == SCREEN_SETTINGS) {
+        if (_settingsView.shouldClose()) {
+            _settingsView.clearClose();
+            switchScreen(_screenBeforeSettings);
         }
     }
 
@@ -352,6 +389,9 @@ void App::drawHeader(Canvas& canvas, const Theme& theme) {
         case SCREEN_PROJECT:
             title = "PROJECTS";
             break;
+        case SCREEN_SETTINGS:
+            title = "SETTINGS";
+            break;
     }
     canvas.setTextDatum(top_left);
     canvas.drawString(title, hdrLeft + 4, 7);
@@ -415,8 +455,8 @@ void App::drawHelp(Canvas& canvas, const Theme& theme) {
         {"SPACE", "play/stop"}, {"1-8", "audition"},
     };
     static const HelpLine globals[] = {
-        {"S", "save"}, {"O", "open"}, {"+/-", "volume"},
-        {"B+/-", "bpm"}, {"Fn+/-", "bright"}, {"TAB", "navigate"},
+        {"S", "save"}, {"O", "open"}, {"G", "settings"}, {"M", "led"},
+        {"+/-", "volume"}, {"B+/-", "bpm"}, {"Fn+/-", "bright"}, {"TAB", "navigate"},
     };
 
     const HelpLine* lines = nullptr;
@@ -529,6 +569,13 @@ void App::drawTabMenu(Canvas& canvas, const Theme& theme) {
             canvas.drawString(tabMenuLabels[i], 30, y);
         }
     }
+
+    canvas.setTextSize(1);
+    canvas.setTextDatum(top_right);
+    canvas.setTextColor(theme.dim);
+    char slotStr[8];
+    snprintf(slotStr, sizeof(slotStr), "P%02d", _currentProjectSlot + 1);
+    canvas.drawString(slotStr, SCREEN_WIDTH - 8, 6);
 }
 
 View* App::getView(Screen s) {
@@ -539,11 +586,15 @@ View* App::getView(Screen s) {
         case SCREEN_SONG: return &_songView;
         case SCREEN_PLAY: return &_playView;
         case SCREEN_PROJECT: return &_projectView;
+        case SCREEN_SETTINGS: return &_settingsView;
     }
     return &_soundView;
 }
 
 void App::switchScreen(Screen s) {
+    if (_settings.autoSave && _currentScreen != SCREEN_PROJECT && _currentScreen != SCREEN_SETTINGS) {
+        Storage::saveProject(_project, _currentProjectSlot);
+    }
     getView(_currentScreen)->exit();
     _currentScreen = s;
     getView(_currentScreen)->enter();

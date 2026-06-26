@@ -18,12 +18,15 @@ public:
     void clearLoad() { _loaded = false; }
 
 private:
+    void doSwitch();
+
     Project& _project;
     Character& _character;
     uint8_t& _currentSlot;
     uint8_t _cursor;
     bool _closeRequested;
     bool _loaded;
+    bool _confirming;
     bool _slotExists[8];
     uint8_t _slotTheme[8];
     uint16_t _slotBpm[8];
