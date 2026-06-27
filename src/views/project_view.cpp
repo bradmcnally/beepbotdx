@@ -223,8 +223,8 @@ void ProjectView::draw(Canvas& canvas) {
         canvas.setTextDatum(top_center);
         canvas.drawString("Unsaved changes!", boxX + boxW / 2, boxY + 6);
 
-        canvas.setTextColor(theme.dim);
-        canvas.drawString("ENTER:save  DEL:discard", boxX + boxW / 2, boxY + 22);
+        canvas.setTextColor(theme.accent);
+        canvas.drawString("OK:save  DEL:discard", boxX + boxW / 2, boxY + 22);
     }
 
     if (_deleting) {
@@ -241,8 +241,8 @@ void ProjectView::draw(Canvas& canvas) {
         snprintf(msg, sizeof(msg), "Delete project %d?", _cursor + 1);
         canvas.drawString(msg, boxX + boxW / 2, boxY + 6);
 
-        canvas.setTextColor(theme.dim);
-        canvas.drawString("ENTER:confirm  ESC:cancel", boxX + boxW / 2, boxY + 22);
+        canvas.setTextColor(theme.accent);
+        canvas.drawString("OK:yes  ESC:no", boxX + boxW / 2, boxY + 22);
     }
 
     if (_statusMsg[0] && (millis() - _statusTime < 2000)) {

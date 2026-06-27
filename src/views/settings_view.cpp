@@ -55,7 +55,7 @@ void SettingsView::draw(Canvas& canvas) {
     canvas.setTextSize(1);
 
     const int itemH = 16;
-    const int startY = 40;
+    const int startY = 24;
     const int labelX = 20;
     const int valueX = 140;
 
@@ -76,7 +76,7 @@ void SettingsView::draw(Canvas& canvas) {
             canvas.drawString(">", labelX - 10, y);
         }
 
-        canvas.setTextColor(i == _cursor ? TFT_WHITE : theme.dim);
+        canvas.setTextColor(i == _cursor ? TFT_WHITE : theme.accent);
         canvas.setTextDatum(top_left);
         canvas.drawString(labels[i], labelX, y);
 

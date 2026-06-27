@@ -453,8 +453,8 @@ void SoundView::draw(Canvas& canvas) {
                 canvas.setTextDatum(top_center);
                 canvas.drawString("Delete sound?", boxX + boxW / 2, boxY + 6);
 
-                canvas.setTextColor(theme.dim);
-                canvas.drawString("ENTER:confirm  ESC:cancel", boxX + boxW / 2, boxY + 22);
+                canvas.setTextColor(theme.accent);
+                canvas.drawString("OK:yes  ESC:no", boxX + boxW / 2, boxY + 22);
             }
             break;
         }
