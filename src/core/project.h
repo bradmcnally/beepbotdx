@@ -14,6 +14,7 @@ struct Project {
     SoundSlot sounds[NUM_SOUNDS];
     Pattern patterns[NUM_PATTERNS];
     uint8_t song[NUM_SONG_POSITIONS];
+    bool dirty;
 
     static void init(Project& p);
 };

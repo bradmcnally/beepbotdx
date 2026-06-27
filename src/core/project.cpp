@@ -11,4 +11,5 @@ void Project::init(Project& p) {
 
     memset(p.patterns, 0, sizeof(p.patterns));
     memset(p.song, 0xFF, sizeof(p.song));
+    p.dirty = false;
 }

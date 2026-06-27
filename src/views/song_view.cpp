@@ -54,6 +54,7 @@ void SongView::update(InputEvent event) {
                 } else if (_project.song[_cursor] < NUM_PATTERNS - 1) {
                     _project.song[_cursor]++;
                 }
+                _project.dirty = true;
             } else if (ch == '[') {
                 if (_project.song[_cursor] != 0xFF) {
                     if (_project.song[_cursor] > 0) {
@@ -62,11 +63,13 @@ void SongView::update(InputEvent event) {
                         _project.song[_cursor] = 0xFF;
                     }
                 }
+                _project.dirty = true;
             }
             break;
         }
         case INPUT_BACK:
             _project.song[_cursor] = 0xFF;
+            _project.dirty = true;
             break;
         case INPUT_ENTER:
             if (_project.song[_cursor] != 0xFF) {

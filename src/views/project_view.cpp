@@ -98,9 +98,11 @@ void ProjectView::update(InputEvent event) {
         case INPUT_ENTER:
             if (_cursor == _currentSlot) {
                 _closeRequested = true;
-            } else {
+            } else if (_project.dirty) {
                 _confirming = true;
                 _character.say("unsaved!");
+            } else {
+                doSwitch();
             }
             break;
         case INPUT_SPACE: {
@@ -123,11 +125,13 @@ void ProjectView::update(InputEvent event) {
         case INPUT_PLUS:
             _project.themeIndex = (_project.themeIndex + 1) % ThemeOps::NUM_PRESETS;
             _slotTheme[_currentSlot] = _project.themeIndex;
+            _project.dirty = true;
             { uint8_t r, g, b; ThemeOps::getPresetRGB(_project.themeIndex, r, g, b); LED::setColor(r, g, b); }
             break;
         case INPUT_MINUS:
             _project.themeIndex = (_project.themeIndex + ThemeOps::NUM_PRESETS - 1) % ThemeOps::NUM_PRESETS;
             _slotTheme[_currentSlot] = _project.themeIndex;
+            _project.dirty = true;
             { uint8_t r, g, b; ThemeOps::getPresetRGB(_project.themeIndex, r, g, b); LED::setColor(r, g, b); }
             break;
         case INPUT_BACK:

@@ -65,12 +65,14 @@ void PatternEditView::update(InputEvent event) {
 void PatternEditView::toggleStep(uint8_t sound) {
     Pattern& pat = _project.patterns[_patternIndex];
     pat.steps[_cursorX] ^= (1 << sound);
+    _project.dirty = true;
 }
 
 void PatternEditView::toggleStepAt(uint8_t step) {
     if (step >= NUM_STEPS) return;
     Pattern& pat = _project.patterns[_patternIndex];
     pat.steps[step] ^= (1 << _cursorY);
+    _project.dirty = true;
 }
 
 void PatternEditView::handleNumber(uint8_t num) {
@@ -78,6 +80,7 @@ void PatternEditView::handleNumber(uint8_t num) {
         Pattern& pat = _project.patterns[_patternIndex];
         uint8_t step = _sequencer.nearestStep(millis());
         pat.steps[step] |= (1 << num);
+        _project.dirty = true;
     }
     triggerSound(num);
 }

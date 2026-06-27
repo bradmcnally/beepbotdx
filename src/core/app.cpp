@@ -26,6 +26,7 @@ void App::init(AppCallbacks callbacks) {
 void App::loadSlot(uint8_t slot) {
     _currentProjectSlot = slot;
     Storage::loadProject(_project, slot);
+    _project.dirty = false;
     if (_settings.ledMode != LED_OFF) {
         uint8_t r, g, b;
         ThemeOps::getPresetRGB(_project.themeIndex, r, g, b);
@@ -175,6 +176,7 @@ void App::handleGlobalInput(InputEvent& event) {
         _character.setState(CHAR_SAVING);
         _character.say("saving...");
         if (Storage::saveProject(_project, _currentProjectSlot)) {
+            _project.dirty = false;
             if (_callbacks.saveSlot) _callbacks.saveSlot(_currentProjectSlot);
             _character.setState(CHAR_SUCCESS);
             _character.say("saved!");
@@ -248,8 +250,8 @@ void App::handleGlobalInput(InputEvent& event) {
         && !(_currentScreen == SCREEN_SOUND && _soundView.inTrim())
         && !textInput) {
         if (Input::isBHeld()) {
-            if (event == INPUT_PLUS && _project.bpm < MAX_BPM) _project.bpm++;
-            if (event == INPUT_MINUS && _project.bpm > MIN_BPM) _project.bpm--;
+            if (event == INPUT_PLUS && _project.bpm < MAX_BPM) { _project.bpm++; _project.dirty = true; }
+            if (event == INPUT_MINUS && _project.bpm > MIN_BPM) { _project.bpm--; _project.dirty = true; }
             if (_currentScreen == SCREEN_PLAY || _currentScreen == SCREEN_SONG || _currentScreen == SCREEN_PATTERN_SELECT) {
                 char bpmMsg[10];
                 snprintf(bpmMsg, sizeof(bpmMsg), "bpm %d", _project.bpm);
@@ -632,6 +634,7 @@ View* App::getView(Screen s) {
 void App::switchScreen(Screen s) {
     if (_settings.autoSave && _currentScreen != SCREEN_PROJECT && _currentScreen != SCREEN_SETTINGS) {
         Storage::saveProject(_project, _currentProjectSlot);
+        _project.dirty = false;
     }
     getView(_currentScreen)->exit();
     _currentScreen = s;

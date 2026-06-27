@@ -26,6 +26,7 @@ void PatternSelectView::update(InputEvent event) {
     if (_confirmingDelete) {
         if (event == INPUT_ENTER) {
             memset(_project.patterns[_cursor].steps, 0, NUM_STEPS);
+            _project.dirty = true;
             _character.setState(CHAR_SUCCESS);
             _character.say("cleared");
             _confirmingDelete = false;
@@ -59,6 +60,7 @@ void PatternSelectView::update(InputEvent event) {
                     _confirmingDelete = true;
                 } else {
                     memset(_project.patterns[_cursor].steps, 0, NUM_STEPS);
+                    _project.dirty = true;
                     _character.setState(CHAR_SUCCESS);
                     _character.say("cleared");
                 }
@@ -96,6 +98,7 @@ void PatternSelectView::update(InputEvent event) {
                 _character.say("copied");
             } else if (Input::isFnHeld() && ch == 'v' && _hasClipboard) {
                 memcpy(_project.patterns[_cursor].steps, _clipboard.steps, NUM_STEPS);
+                _project.dirty = true;
                 _character.say("pasted");
             }
             break;

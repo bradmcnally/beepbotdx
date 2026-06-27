@@ -60,6 +60,7 @@ void SoundView::update(InputEvent event) {
     if (_confirmingDelete) {
         if (event == INPUT_ENTER) {
             SoundSlotOps::free(_project.sounds[_cursor]);
+            _project.dirty = true;
             _character.setState(CHAR_SUCCESS);
             _character.say("cleared");
             _confirmingDelete = false;
@@ -120,6 +121,7 @@ void SoundView::update(InputEvent event) {
                             _confirmingDelete = true;
                         } else {
                             SoundSlotOps::free(_project.sounds[_cursor]);
+                            _project.dirty = true;
                             _character.setState(CHAR_SUCCESS);
                             _character.say("cleared");
                         }
@@ -256,10 +258,12 @@ void SoundView::update(InputEvent event) {
                 case INPUT_PLUS:
                     if (slot.level <= 95) slot.level += 5;
                     else slot.level = 100;
+                    _project.dirty = true;
                     break;
                 case INPUT_MINUS:
                     if (slot.level >= 5) slot.level -= 5;
                     else slot.level = 0;
+                    _project.dirty = true;
                     break;
                 case INPUT_ENTER: {
                     applyTrim();
@@ -300,6 +304,7 @@ void SoundView::update(InputEvent event) {
                     char path[64];
                     snprintf(path, sizeof(path), "/beepbotdx/samples/%s", _wavFiles[_fileCursor]);
                     if (Storage::loadWav(_project.sounds[_cursor], path)) {
+                        _project.dirty = true;
                         snprintf(_statusMsg, sizeof(_statusMsg), "OK: %s", path);
                         _character.setState(CHAR_SUCCESS);
                         _character.say("nice one");
@@ -338,6 +343,7 @@ void SoundView::update(InputEvent event) {
                 case INPUT_ENTER:
                     if (_renameLen > 0) {
                         SoundSlotOps::setName(_project.sounds[_cursor], _renameBuffer);
+                        _project.dirty = true;
                         _character.setState(CHAR_SUCCESS);
                         _character.say("renamed!");
                     }
@@ -794,6 +800,7 @@ void SoundView::stopRecording() {
         char defaultName[9];
         snprintf(defaultName, sizeof(defaultName), "REC%d", _cursor + 1);
         SoundSlotOps::setName(slot, defaultName);
+        _project.dirty = true;
 
         _subState = STATE_RECORD_DONE;
         _recordDoneTime = millis();
@@ -815,6 +822,7 @@ void SoundView::applyTrim() {
     }
 
     slot.length = newLen;
+    _project.dirty = true;
 
     // Shrink buffer to free wasted memory
     SoundSlotOps::shrinkToFit(slot);
