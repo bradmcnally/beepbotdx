@@ -218,13 +218,14 @@ bool Storage::listWavFiles(const char* dir, char names[][32], uint8_t& count, ui
 }
 
 static const uint32_t PROJECT_MAGIC = 0x42505844; // "BPXD"
-static const uint8_t PROJECT_VERSION = 3;
+static const uint8_t PROJECT_VERSION = 1;
 
 struct ProjectHeader {
     uint32_t magic;
     uint8_t version;
     uint16_t bpm;
     uint8_t themeIndex;
+    char name[9];
     uint8_t soundOccupied[NUM_SOUNDS];
     char soundNames[NUM_SOUNDS][9];
     uint8_t soundLevels[NUM_SOUNDS];
@@ -265,8 +266,45 @@ uint8_t Storage::loadProjectTheme(uint8_t slot) {
     ProjectHeader hdr;
     if (fread(&hdr, sizeof(hdr), 1, f) != 1) { fclose(f); return 0; }
     fclose(f);
-    if (hdr.magic != PROJECT_MAGIC || hdr.version != PROJECT_VERSION) return 0;
+    if (hdr.magic != PROJECT_MAGIC || hdr.version < 1 || hdr.version > PROJECT_VERSION) return 0;
     return hdr.themeIndex;
+}
+
+bool Storage::saveProjectTheme(uint8_t slot, uint8_t themeIndex) {
+    if (!_ready || slot >= 8) return false;
+    char path[80];
+    projectPath(slot, path, sizeof(path));
+    FILE* f = fopen(path, "rb");
+    if (!f) return false;
+    ProjectHeader hdr;
+    if (fread(&hdr, sizeof(hdr), 1, f) != 1) { fclose(f); return false; }
+    fclose(f);
+    if (hdr.magic != PROJECT_MAGIC || hdr.version < 1 || hdr.version > PROJECT_VERSION) return false;
+    hdr.themeIndex = themeIndex;
+    f = fopen(path, "wb");
+    if (!f) return false;
+    fwrite(&hdr, sizeof(hdr), 1, f);
+    fclose(f);
+    return true;
+}
+
+bool Storage::saveProjectName(uint8_t slot, const char* name) {
+    if (!_ready || slot >= 8) return false;
+    char path[80];
+    projectPath(slot, path, sizeof(path));
+    FILE* f = fopen(path, "rb");
+    if (!f) return false;
+    ProjectHeader hdr;
+    if (fread(&hdr, sizeof(hdr), 1, f) != 1) { fclose(f); return false; }
+    fclose(f);
+    if (hdr.magic != PROJECT_MAGIC || hdr.version < 1 || hdr.version > PROJECT_VERSION) return false;
+    strncpy(hdr.name, name, 8);
+    hdr.name[8] = '\0';
+    f = fopen(path, "wb");
+    if (!f) return false;
+    fwrite(&hdr, sizeof(hdr), 1, f);
+    fclose(f);
+    return true;
 }
 
 uint16_t Storage::loadProjectBpm(uint8_t slot) {
@@ -278,8 +316,23 @@ uint16_t Storage::loadProjectBpm(uint8_t slot) {
     ProjectHeader hdr;
     if (fread(&hdr, sizeof(hdr), 1, f) != 1) { fclose(f); return DEFAULT_BPM; }
     fclose(f);
-    if (hdr.magic != PROJECT_MAGIC || hdr.version != PROJECT_VERSION) return DEFAULT_BPM;
+    if (hdr.magic != PROJECT_MAGIC || hdr.version < 1 || hdr.version > PROJECT_VERSION) return DEFAULT_BPM;
     return hdr.bpm;
+}
+
+void Storage::loadProjectName(uint8_t slot, char* buf, uint8_t len) {
+    buf[0] = '\0';
+    if (!_ready || slot >= 8) return;
+    char path[80];
+    projectPath(slot, path, sizeof(path));
+    FILE* f = fopen(path, "rb");
+    if (!f) return;
+    ProjectHeader hdr;
+    if (fread(&hdr, sizeof(hdr), 1, f) != 1) { fclose(f); return; }
+    fclose(f);
+    if (hdr.magic != PROJECT_MAGIC || hdr.version < 1 || hdr.version > PROJECT_VERSION) return;
+    strncpy(buf, hdr.name, len - 1);
+    buf[len - 1] = '\0';
 }
 
 bool Storage::saveProject(const Project& project, uint8_t slot) {
@@ -331,6 +384,8 @@ bool Storage::saveProject(const Project& project, uint8_t slot) {
     hdr.version = PROJECT_VERSION;
     hdr.bpm = project.bpm;
     hdr.themeIndex = project.themeIndex;
+    strncpy(hdr.name, project.name, 8);
+    hdr.name[8] = '\0';
     memcpy(hdr.patterns, project.patterns, sizeof(hdr.patterns));
     memcpy(hdr.song, project.song, sizeof(hdr.song));
 
@@ -363,12 +418,14 @@ bool Storage::loadProject(Project& project, uint8_t slot) {
     }
     fclose(f);
 
-    if (hdr.magic != PROJECT_MAGIC || hdr.version != PROJECT_VERSION) {
+    if (hdr.magic != PROJECT_MAGIC || hdr.version < 1 || hdr.version > PROJECT_VERSION) {
         return false;
     }
 
     project.bpm = hdr.bpm;
     project.themeIndex = hdr.themeIndex;
+    strncpy(project.name, hdr.name, 8);
+    project.name[8] = '\0';
     memcpy(project.patterns, hdr.patterns, sizeof(project.patterns));
     memcpy(project.song, hdr.song, sizeof(project.song));
 

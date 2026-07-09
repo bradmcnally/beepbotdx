@@ -14,6 +14,7 @@ struct GlobalSettings {
     bool autoSave = false;
     LedMode ledMode = LED_ON;
     bool confirmDelete = true;
+    bool bootToProject = false;
 
     static GlobalSettings* instance;
 };
@@ -36,5 +37,5 @@ private:
     uint8_t _cursor = 0;
     bool _closeRequested = false;
 
-    static const uint8_t NUM_ITEMS = 3;
+    static const uint8_t NUM_ITEMS = 4;
 };

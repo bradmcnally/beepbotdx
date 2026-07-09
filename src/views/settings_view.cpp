@@ -1,5 +1,6 @@
 #include "settings_view.h"
 #include "core/theme.h"
+#include "platform/led.h"
 #include "config.h"
 
 GlobalSettings* GlobalSettings::instance = nullptr;
@@ -34,11 +35,21 @@ void SettingsView::update(InputEvent event) {
                 } else {
                     _settings.ledMode = (LedMode)((_settings.ledMode + 1) % 3);
                 }
+                if (_settings.ledMode == LED_OFF) {
+                    LED::off();
+                } else {
+                    uint8_t r, g, b;
+                    ThemeOps::getPresetRGB(_project.themeIndex, r, g, b);
+                    LED::setColor(r, g, b);
+                }
                 const char* names[] = {"on", "beat", "off"};
                 _character.say(names[_settings.ledMode]);
             } else if (_cursor == 2) {
                 _settings.confirmDelete = !_settings.confirmDelete;
                 _character.say(_settings.confirmDelete ? "on" : "off");
+            } else if (_cursor == 3) {
+                _settings.bootToProject = !_settings.bootToProject;
+                _character.say(_settings.bootToProject ? "projects" : "last");
             }
             break;
         case INPUT_ESC:
@@ -59,13 +70,14 @@ void SettingsView::draw(Canvas& canvas) {
     const int labelX = 20;
     const int valueX = 140;
 
-    const char* labels[] = {"AUTO-SAVE", "LED MODE", "WARNINGS"};
+    const char* labels[] = {"AUTO-SAVE", "LED MODE", "WARNINGS", "BOOT"};
     const char* values[NUM_ITEMS];
 
     values[0] = _settings.autoSave ? "ON" : "OFF";
     static const char* ledNames[] = {"ON", "METRONOME", "OFF"};
     values[1] = ledNames[_settings.ledMode];
     values[2] = _settings.confirmDelete ? "ON" : "OFF";
+    values[3] = _settings.bootToProject ? "PROJ LIST" : "LAST PROJ";
 
     for (uint8_t i = 0; i < NUM_ITEMS; i++) {
         int y = startY + i * itemH;

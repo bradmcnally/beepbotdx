@@ -112,11 +112,11 @@ static const ExtGlyph extGlyphs[] = {
     // ︵ U+FE35 - arc (throwing motion)
     {0xFE35, {0x10,0x28,0x44,0x28,0x10}},
     // ♪ U+266A - eighth note
-    {0x266A, {0x02,0x03,0x7D,0x09,0x06}},
-    // ♫ U+266B - beamed eighth notes
-    {0x266B, {0x06,0x79,0x03,0x79,0x06}},
-    // ♬ U+266C - beamed sixteenth notes
-    {0x266C, {0x06,0x7D,0x05,0x7D,0x06}},
+    {0x266A, {0x60,0x70,0x3F,0x02,0x04}},
+    // ♫ U+266B - beamed notes left half (col4 has beam to bridge 1px gap)
+    {0x266B, {0x30,0x38,0x1F,0x01,0x01}},
+    // ♬ U+266C - beamed notes right half
+    {0x266C, {0x62,0x72,0x3E,0x00,0x00}},
     // ノ U+30CE - katakana no (arm reaching)
     {0x30CE, {0x20,0x10,0x08,0x04,0x02}},
 };
@@ -187,6 +187,15 @@ void Canvas::drawString(const char* str, int x, int y) {
                         fillRect(cx + col * sw, y + row * sh, sw, sh, _textColor);
                     }
                 }
+            }
+        }
+        if (cp == 0x266B) {
+            if (_textSize <= 1.0f) {
+                drawPixel(cx + 5, y, _textColor);
+            } else {
+                int sw = (int)_textSize;
+                int sh = (int)_textSize;
+                fillRect(cx + 5 * sw, y, sw, sh, _textColor);
             }
         }
         i++;

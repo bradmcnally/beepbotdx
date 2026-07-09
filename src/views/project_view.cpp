@@ -1,5 +1,6 @@
 #include "project_view.h"
 #include "platform/storage.h"
+#include "platform/input.h"
 #include "platform/led.h"
 #include "core/theme.h"
 #include "core/timing.h"
@@ -9,9 +10,11 @@
 
 ProjectView::ProjectView(Project& project, Character& character, uint8_t& currentSlot)
     : _project(project), _character(character), _currentSlot(currentSlot),
-      _cursor(0), _closeRequested(false), _loaded(false), _confirming(false), _deleting(false), _statusTime(0) {
+      _cursor(0), _closeRequested(false), _loaded(false), _confirming(false), _deleting(false), _statusTime(0),
+      _renaming(false), _renameLen(0) {
     _statusMsg[0] = '\0';
     memset(_slotExists, 0, sizeof(_slotExists));
+    memset(_slotName, 0, sizeof(_slotName));
 }
 
 void ProjectView::enter() {
@@ -23,14 +26,22 @@ void ProjectView::enter() {
     _statusMsg[0] = '\0';
     _character.setState(CHAR_IDLE);
 
+    _renaming = false;
     for (uint8_t i = 0; i < 8; i++) {
         _slotExists[i] = Storage::projectExists(i);
         if (i == _currentSlot) {
             _slotTheme[i] = _project.themeIndex;
             _slotBpm[i] = _project.bpm;
+            strncpy(_slotName[i], _project.name, 8);
+            _slotName[i][8] = '\0';
         } else {
             _slotTheme[i] = _slotExists[i] ? Storage::loadProjectTheme(i) : 0;
             _slotBpm[i] = _slotExists[i] ? Storage::loadProjectBpm(i) : DEFAULT_BPM;
+            if (_slotExists[i]) {
+                Storage::loadProjectName(i, _slotName[i], 9);
+            } else {
+                _slotName[i][0] = '\0';
+            }
         }
     }
 }
@@ -66,13 +77,67 @@ void ProjectView::update(InputEvent event) {
                 if (_cursor == _currentSlot) {
                     Project::init(_project);
                 }
-                _character.setState(CHAR_SUCCESS);
+                _character.setState(CHAR_CRYING);
                 _character.say("deleted");
                 break;
             case INPUT_ESC:
             case INPUT_BACK:
                 _deleting = false;
                 _character.setState(CHAR_IDLE);
+                break;
+            default:
+                break;
+        }
+        return;
+    }
+
+    if (_renaming) {
+        switch (event) {
+            case INPUT_ENTER:
+                if (_renameLen > 0) {
+                    strncpy(_slotName[_cursor], _renameBuffer, 8);
+                    _slotName[_cursor][8] = '\0';
+                    if (_cursor == _currentSlot) {
+                        strncpy(_project.name, _renameBuffer, 8);
+                        _project.name[8] = '\0';
+                        _project.dirty = true;
+                    } else {
+                        Storage::saveProjectName(_cursor, _renameBuffer);
+                    }
+                    _character.setState(CHAR_SUCCESS);
+                    _character.say("renamed!");
+                }
+                _renaming = false;
+                break;
+            case INPUT_ESC:
+                _renaming = false;
+                _character.setState(CHAR_IDLE);
+                break;
+            case INPUT_BACK:
+                if (_renameLen > 0) _renameLen--;
+                _renameBuffer[_renameLen] = '\0';
+                break;
+            case INPUT_CHAR: {
+                char ch = Input::getChar();
+                if (_renameLen < 8 && ch >= ' ' && ch <= '~') {
+                    _renameBuffer[_renameLen++] = ch;
+                    _renameBuffer[_renameLen] = '\0';
+                }
+                break;
+            }
+            case INPUT_NUM1: case INPUT_NUM2: case INPUT_NUM3:
+            case INPUT_NUM4: case INPUT_NUM5: case INPUT_NUM6:
+            case INPUT_NUM7: case INPUT_NUM8: case INPUT_NUM9:
+                if (_renameLen < 8) {
+                    _renameBuffer[_renameLen++] = '1' + (event - INPUT_NUM1);
+                    _renameBuffer[_renameLen] = '\0';
+                }
+                break;
+            case INPUT_NUM0:
+                if (_renameLen < 8) {
+                    _renameBuffer[_renameLen++] = '0';
+                    _renameBuffer[_renameLen] = '\0';
+                }
                 break;
             default:
                 break;
@@ -100,39 +165,35 @@ void ProjectView::update(InputEvent event) {
                 _closeRequested = true;
             } else if (_project.dirty) {
                 _confirming = true;
+                _character.setState(CHAR_SUSPICIOUS);
                 _character.say("unsaved!");
             } else {
                 doSwitch();
             }
             break;
-        case INPUT_SPACE: {
-            _character.setState(CHAR_SAVING);
-            _character.say("rendering...");
-            char path[64];
-            snprintf(path, sizeof(path), "/beepbotdx/export_%d.wav", _currentSlot + 1);
-            if (Storage::renderSongToWav(_project, path)) {
-                snprintf(_statusMsg, sizeof(_statusMsg), "EXPORTED");
-                _character.setState(CHAR_SUCCESS);
-                _character.say("exported!");
-            } else {
-                snprintf(_statusMsg, sizeof(_statusMsg), "EXPORT FAIL");
-                _character.setState(CHAR_ERROR);
-                _character.say("oh no");
-            }
-            _statusTime = millis();
+        case INPUT_SPACE:
             break;
-        }
         case INPUT_PLUS:
-            _project.themeIndex = (_project.themeIndex + 1) % ThemeOps::NUM_PRESETS;
-            _slotTheme[_currentSlot] = _project.themeIndex;
-            _project.dirty = true;
-            { uint8_t r, g, b; ThemeOps::getPresetRGB(_project.themeIndex, r, g, b); LED::setColor(r, g, b); }
+            if (_cursor == _currentSlot) {
+                _project.themeIndex = (_project.themeIndex + 1) % ThemeOps::NUM_PRESETS;
+                _slotTheme[_currentSlot] = _project.themeIndex;
+                _project.dirty = true;
+                { uint8_t r, g, b; ThemeOps::getPresetRGB(_project.themeIndex, r, g, b); LED::setColor(r, g, b); }
+            } else if (_slotExists[_cursor]) {
+                _slotTheme[_cursor] = (_slotTheme[_cursor] + 1) % ThemeOps::NUM_PRESETS;
+                Storage::saveProjectTheme(_cursor, _slotTheme[_cursor]);
+            }
             break;
         case INPUT_MINUS:
-            _project.themeIndex = (_project.themeIndex + ThemeOps::NUM_PRESETS - 1) % ThemeOps::NUM_PRESETS;
-            _slotTheme[_currentSlot] = _project.themeIndex;
-            _project.dirty = true;
-            { uint8_t r, g, b; ThemeOps::getPresetRGB(_project.themeIndex, r, g, b); LED::setColor(r, g, b); }
+            if (_cursor == _currentSlot) {
+                _project.themeIndex = (_project.themeIndex + ThemeOps::NUM_PRESETS - 1) % ThemeOps::NUM_PRESETS;
+                _slotTheme[_currentSlot] = _project.themeIndex;
+                _project.dirty = true;
+                { uint8_t r, g, b; ThemeOps::getPresetRGB(_project.themeIndex, r, g, b); LED::setColor(r, g, b); }
+            } else if (_slotExists[_cursor]) {
+                _slotTheme[_cursor] = (_slotTheme[_cursor] + ThemeOps::NUM_PRESETS - 1) % ThemeOps::NUM_PRESETS;
+                Storage::saveProjectTheme(_cursor, _slotTheme[_cursor]);
+            }
             break;
         case INPUT_BACK:
             if (_slotExists[_cursor]) {
@@ -143,6 +204,36 @@ void ProjectView::update(InputEvent event) {
         case INPUT_ESC:
             _closeRequested = true;
             break;
+        case INPUT_CHAR: {
+            char ch = Input::getChar();
+            if (ch == 'r' && _slotExists[_cursor]) {
+                strncpy(_renameBuffer, _slotName[_cursor], 8);
+                _renameBuffer[8] = '\0';
+                _renameLen = strlen(_renameBuffer);
+                _renaming = true;
+                _character.setState(CHAR_FOCUSED);
+            } else if (ch == 'e') {
+                _character.setState(CHAR_SAVING);
+                _character.say("rendering...");
+                char path[64];
+                if (_project.name[0]) {
+                    snprintf(path, sizeof(path), "/beepbotdx/%s.wav", _project.name);
+                } else {
+                    snprintf(path, sizeof(path), "/beepbotdx/export_%d.wav", _currentSlot + 1);
+                }
+                if (Storage::renderSongToWav(_project, path)) {
+                    snprintf(_statusMsg, sizeof(_statusMsg), "EXPORTED");
+                    _character.setState(CHAR_SUCCESS);
+                    _character.say("exported!");
+                } else {
+                    snprintf(_statusMsg, sizeof(_statusMsg), "EXPORT FAIL");
+                    _character.setState(CHAR_ERROR);
+                    _character.say("oh no");
+                }
+                _statusTime = millis();
+            }
+            break;
+        }
         default:
             break;
     }
@@ -170,10 +261,50 @@ void ProjectView::doSwitch() {
 void ProjectView::draw(Canvas& canvas) {
     Theme theme = ThemeOps::getPreset(_project.themeIndex);
 
+    if (_renaming) {
+        Theme slotTheme = ThemeOps::getPreset(_slotTheme[_cursor]);
+        const int margin = 3;
+        const int hdrGridW = SCREEN_WIDTH - margin * 2;
+        const int hdrCellW = (hdrGridW - margin * 3) / 4;
+        const int hdrContentW = hdrCellW * 4 + margin * 3;
+        const int hdrLeft = margin + (hdrGridW - hdrContentW) / 2;
+        const int infoY = 23;
+
+        canvas.setTextSize(1);
+        canvas.setTextColor(slotTheme.accent);
+        canvas.setTextDatum(top_left);
+        canvas.drawString("RENAME", hdrLeft + 4, infoY);
+
+        canvas.setTextColor(slotTheme.dim);
+        canvas.setTextDatum(top_right);
+        canvas.drawString("8 CHAR", SCREEN_WIDTH - margin - 4, infoY);
+        canvas.setTextDatum(top_left);
+
+        char display[12];
+        bool showCursor = (millis() / 400) % 2 == 0;
+        if (showCursor) {
+            snprintf(display, sizeof(display), "%s_", _renameBuffer);
+        } else {
+            snprintf(display, sizeof(display), "%s ", _renameBuffer);
+        }
+        canvas.setTextColor(TFT_WHITE);
+        canvas.setTextDatum(top_left);
+        canvas.setTextSize(2);
+        int nameY = infoY + 12 + (SCREEN_HEIGHT - 14 - (infoY + 12)) / 2 - 14;
+        canvas.drawString(display, hdrLeft + 4, nameY);
+        canvas.setTextSize(1);
+
+        canvas.setTextColor(slotTheme.accent);
+        canvas.setTextDatum(top_center);
+        canvas.drawString("[Esc] Cancel    [Ok] Confirm", SCREEN_WIDTH / 2, SCREEN_HEIGHT - 14);
+        canvas.setTextDatum(top_left);
+        return;
+    }
+
     canvas.setTextSize(1);
     canvas.setTextDatum(top_left);
 
-    GridLayout grid = GridLayout::make(2, 4, 3);
+    GridLayout grid = GridLayout::make(2, 4, 22);
 
     for (uint8_t i = 0; i < 8; i++) {
         int x, y;
@@ -182,15 +313,21 @@ void ProjectView::draw(Canvas& canvas) {
         uint16_t bgColor;
         uint16_t textColor;
         if (i == _cursor) {
-            bgColor = TFT_WHITE;
-            textColor = TFT_BLACK;
+            if (_slotExists[i]) {
+                Theme slotTheme = ThemeOps::getPreset(_slotTheme[i]);
+                bgColor = slotTheme.accent;
+                textColor = slotTheme.textOnAccent;
+            } else {
+                bgColor = TFT_WHITE;
+                textColor = TFT_BLACK;
+            }
         } else if (_slotExists[i]) {
             Theme slotTheme = ThemeOps::getPreset(_slotTheme[i]);
-            bgColor = slotTheme.accent;
-            textColor = TFT_BLACK;
+            bgColor = slotTheme.dark;
+            textColor = slotTheme.accent;
         } else {
-            bgColor = theme.dark;
-            textColor = 0x7BEF;
+            bgColor = ThemeOps::rgb565(20, 20, 20);
+            textColor = ThemeOps::rgb565(72, 72, 72);
         }
         canvas.fillRect(x, y, grid.cellW, grid.cellH, bgColor);
 
@@ -207,17 +344,29 @@ void ProjectView::draw(Canvas& canvas) {
         }
 
         if (_slotExists[i]) {
-            char bpmStr[8];
-            snprintf(bpmStr, sizeof(bpmStr), "%dbpm", _slotBpm[i]);
-            canvas.drawString(bpmStr, x + 4, y + 14);
-        } else {
-            canvas.drawString("empty", x + 4, y + 14);
+            if (_slotName[i][0]) {
+                canvas.drawString(_slotName[i], x + 4, y + 14);
+            } else {
+                char bpmStr[8];
+                snprintf(bpmStr, sizeof(bpmStr), "%dbpm", _slotBpm[i]);
+                canvas.drawString(bpmStr, x + 4, y + 14);
+            }
         }
     }
 
     if (_confirming) {
-        const int boxW = 140;
-        const int boxH = 40;
+        uint16_t* buf = canvas.buffer();
+        int total = SCREEN_WIDTH * SCREEN_HEIGHT;
+        for (int p = 0; p < total; p++) {
+            uint16_t c = buf[p];
+            uint8_t r = (c >> 11) & 0x1F;
+            uint8_t g = (c >> 5) & 0x3F;
+            uint8_t b = c & 0x1F;
+            buf[p] = ((r * 15 / 100) << 11) | ((g * 15 / 100) << 5) | (b * 15 / 100);
+        }
+
+        const int boxW = 180;
+        const int boxH = 68;
         const int boxX = (SCREEN_WIDTH - boxW) / 2;
         const int boxY = (SCREEN_HEIGHT - boxH) / 2;
         canvas.fillRect(boxX, boxY, boxW, boxH, TFT_BLACK);
@@ -225,10 +374,11 @@ void ProjectView::draw(Canvas& canvas) {
 
         canvas.setTextColor(TFT_WHITE);
         canvas.setTextDatum(top_center);
-        canvas.drawString("Unsaved changes!", boxX + boxW / 2, boxY + 6);
+        canvas.drawString("You have unsaved changes", boxX + boxW / 2, boxY + 12);
 
         canvas.setTextColor(theme.accent);
-        canvas.drawString("OK:save  DEL:discard", boxX + boxW / 2, boxY + 22);
+        canvas.drawString("OK:save  Esc:cancel", boxX + boxW / 2, boxY + 34);
+        canvas.drawString("DEL:discard", boxX + boxW / 2, boxY + 50);
     }
 
     if (_deleting) {
@@ -248,6 +398,7 @@ void ProjectView::draw(Canvas& canvas) {
         canvas.setTextColor(theme.accent);
         canvas.drawString("OK:yes  ESC:no", boxX + boxW / 2, boxY + 22);
     }
+
 
     if (_statusMsg[0] && (millis() - _statusTime < 2000)) {
         canvas.setTextColor(theme.highlight);

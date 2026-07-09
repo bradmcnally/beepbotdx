@@ -19,7 +19,7 @@ void PatternSelectView::enter() {
 
 void PatternSelectView::update(InputEvent event) {
     if (!_sequencer.isPlaying() &&
-        (_character.getState() == CHAR_PLAYING || _character.getState() == CHAR_BEAT)) {
+        (_character.getState() == CHAR_BEAT || _character.getState() == CHAR_DANCE_L || _character.getState() == CHAR_DANCE_R)) {
         _character.setState(CHAR_IDLE);
     }
 
@@ -81,11 +81,11 @@ void PatternSelectView::update(InputEvent event) {
                 }
                 if (hasSteps) {
                     _sequencer.playPattern(_cursor, true);
-                    _character.setState(CHAR_PLAYING);
+                    _character.setState(CHAR_IDLE);
                     _flashPattern = _cursor;
                     _flashTime = millis();
                 } else {
-                    _character.setState(CHAR_ERROR);
+                    _character.setState(CHAR_SUSPICIOUS);
                     _character.say("empty");
                 }
             }
@@ -140,22 +140,40 @@ void PatternSelectView::draw(Canvas& canvas) {
 
         // Cell background
         uint16_t bgColor;
-        if (flashing) bgColor = theme.dim;
-        else if (selected) bgColor = TFT_WHITE;
-        else if (hasSteps) bgColor = theme.accent;
-        else bgColor = theme.dark;
-        canvas.fillRect(x, y, cellW, cellH, bgColor);
-
         uint16_t textColor;
-        if (selected) textColor = TFT_BLACK;
-        else if (hasSteps) textColor = TFT_BLACK;
-        else textColor = TFT_WHITE;
+        if (flashing) { bgColor = theme.dim; textColor = theme.textOnAccent; }
+        else if (selected) { bgColor = theme.accent; textColor = theme.textOnAccent; }
+        else { bgColor = theme.dark; textColor = hasSteps ? theme.accent : theme.dim; }
+        canvas.fillRect(x, y, cellW, cellH, bgColor);
         canvas.setTextColor(textColor);
         canvas.setTextDatum(top_left);
 
         char label[5];
         snprintf(label, sizeof(label), "%02d", i + 1);
         canvas.drawString(label, x + 4, y + 4);
+
+        if (hasSteps) {
+            Pattern& pat = _project.patterns[i];
+            const int px = 2;
+            int miniW = NUM_STEPS * px;
+            int miniH = NUM_SOUNDS * px;
+            int mx = x + cellW - miniW - 3;
+            int my = y + (cellH - miniH + 2) / 2;
+
+            bool isPlaying = _sequencer.isPlaying() && _sequencer.getCurrentPattern() == i;
+            uint8_t playStep = isPlaying ? _sequencer.getCurrentStep() : 0xFF;
+
+            for (uint8_t step = 0; step < NUM_STEPS; step++) {
+                for (uint8_t snd = 0; snd < NUM_SOUNDS; snd++) {
+                    if (step == playStep) {
+                        uint16_t c = (pat.steps[step] & (1 << snd)) ? TFT_WHITE : (selected ? theme.textOnAccent : theme.dim);
+                        canvas.fillRect(mx + step * px, my + snd * px, px, px, c);
+                    } else if (pat.steps[step] & (1 << snd)) {
+                        canvas.fillRect(mx + step * px, my + snd * px, px, px, textColor);
+                    }
+                }
+            }
+        }
     }
 
     if (_confirmingDelete) {

@@ -8,7 +8,6 @@ static bool _ready = false;
 
 void Display::init() {
     M5Cardputer.Display.fillScreen(TFT_BLACK);
-    M5Cardputer.Display.setBrightness(128);
 
     _canvas.create(SCREEN_WIDTH, SCREEN_HEIGHT);
 
@@ -38,4 +37,8 @@ Canvas& Display::canvas() {
 }
 
 void Display::shutdown() {}
+
+void Display::setBrightness(uint8_t value) {
+    M5Cardputer.Display.setBrightness(value);
+}
 

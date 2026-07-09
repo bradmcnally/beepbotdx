@@ -32,6 +32,7 @@ void init();
 InputEvent poll();
 char getChar();
 bool isBHeld();
+bool isNHeld();
 bool isFnHeld();
 bool isTabHeld();
 bool shouldQuit();

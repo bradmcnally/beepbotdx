@@ -6,7 +6,6 @@ enum CharacterState {
     CHAR_IDLE,
     CHAR_FOCUSED,
     CHAR_RECORDING,
-    CHAR_PLAYING,
     CHAR_SAVING,
     CHAR_ERROR,
     CHAR_SUCCESS,
@@ -18,6 +17,11 @@ enum CharacterState {
     CHAR_DANCE_L,
     CHAR_DANCE_R,
     CHAR_JAMMING,
+    CHAR_DIZZY,
+    CHAR_DEAD,
+    CHAR_CRYING,
+    CHAR_WINK,
+    CHAR_SUSPICIOUS,
 };
 
 class Character {

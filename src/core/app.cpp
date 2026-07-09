@@ -37,6 +37,16 @@ void App::loadSlot(uint8_t slot) {
     getView(_currentScreen)->enter();
 }
 
+void App::openProjectList(uint8_t slot) {
+    _currentProjectSlot = slot;
+    Storage::loadProject(_project, slot);
+    _project.dirty = false;
+    LED::off();
+    _currentScreen = SCREEN_PROJECT;
+    _screenBeforeProject = SCREEN_SOUND;
+    getView(SCREEN_PROJECT)->enter();
+}
+
 void App::onStep(uint8_t step) {
     App* app = _instance;
 
@@ -44,10 +54,11 @@ void App::onStep(uint8_t step) {
     app->_stepTriggerCount = 0;
 
     // Dancing on beat
-    if (step % 2 == 0) {
-        app->_character.setState(CHAR_DANCE_L);
-    } else {
-        app->_character.setState(CHAR_DANCE_R);
+    uint8_t dancePhase = (step / 4) % 3;
+    if (step % 4 == 0) {
+        if (dancePhase == 0) app->_character.setState(CHAR_DANCE_R);
+        else if (dancePhase == 1) app->_character.setState(CHAR_DANCE_L);
+        else app->_character.setState(CHAR_BEAT);
     }
 
     // LED
@@ -123,7 +134,8 @@ void App::tick() {
 }
 
 void App::handleGlobalInput(InputEvent& event) {
-    bool textInput = (_currentScreen == SCREEN_SOUND && _soundView.inRename());
+    bool textInput = (_currentScreen == SCREEN_SOUND && _soundView.inRename())
+                  || (_currentScreen == SCREEN_PROJECT && _projectView.inRename());
 
     // Help overlay consumes input when open
     if (_helpOpen && event != INPUT_NONE) {
@@ -229,8 +241,31 @@ void App::handleGlobalInput(InputEvent& event) {
         return;
     }
 
-    // Fn+plus/minus adjusts brightness
-    if ((event == INPUT_PLUS || event == INPUT_MINUS) && Input::isFnHeld()
+    // E key exports song to WAV
+    if (event == INPUT_CHAR && Input::getChar() == 'e'
+        && (_currentScreen == SCREEN_SONG || _currentScreen == SCREEN_PLAY)
+        && !textInput) {
+        _character.setState(CHAR_SAVING);
+        _character.say("rendering...");
+        char path[64];
+        if (_project.name[0]) {
+            snprintf(path, sizeof(path), "/beepbotdx/%s.wav", _project.name);
+        } else {
+            snprintf(path, sizeof(path), "/beepbotdx/export_%d.wav", _currentProjectSlot + 1);
+        }
+        if (Storage::renderSongToWav(_project, path)) {
+            _character.setState(CHAR_SUCCESS);
+            _character.say("exported!");
+        } else {
+            _character.setState(CHAR_ERROR);
+            _character.say("oh no");
+        }
+        event = INPUT_NONE;
+        return;
+    }
+
+    // N+plus/minus adjusts brightness
+    if ((event == INPUT_PLUS || event == INPUT_MINUS) && Input::isNHeld()
         && !textInput) {
         if (event == INPUT_PLUS) {
             _brightness = _brightness <= 90 ? _brightness + 10 : 100;
@@ -329,6 +364,14 @@ void App::handleTransitions() {
             switchScreen(_screenBeforeProject);
         } else if (_projectView.didLoad()) {
             _projectView.clearLoad();
+            _project.dirty = false;
+            if (_settings.ledMode != LED_OFF) {
+                uint8_t r, g, b;
+                ThemeOps::getPresetRGB(_project.themeIndex, r, g, b);
+                LED::setColor(r, g, b);
+            } else {
+                LED::off();
+            }
             if (_callbacks.saveSlot) _callbacks.saveSlot(_currentProjectSlot);
             switchScreen(SCREEN_SOUND);
         }
@@ -369,7 +412,16 @@ void App::render() {
     Theme theme = ThemeOps::getPreset(_project.themeIndex);
     canvas.fillScreen(theme.bg);
 
-    if (_currentScreen != SCREEN_PROJECT) {
+    if (_currentScreen == SCREEN_PROJECT) {
+        if (_projectView.inRename()) {
+            Theme slotTheme = ThemeOps::getPreset(_projectView.getSlotTheme());
+            drawHeader(canvas, slotTheme);
+        } else {
+            Theme whiteTheme = theme;
+            whiteTheme.accent = TFT_WHITE;
+            drawHeader(canvas, whiteTheme);
+        }
+    } else {
         drawHeader(canvas, theme);
     }
     getView(_currentScreen)->draw(canvas);
@@ -427,7 +479,12 @@ void App::drawHeader(Canvas& canvas, const Theme& theme) {
             title = "PLAY";
             break;
         case SCREEN_PROJECT:
-            title = "PROJECTS";
+            if (_projectView.inRename()) {
+                snprintf(titleBuf, sizeof(titleBuf), "PROJ %02d", _projectView.getCursor() + 1);
+                title = titleBuf;
+            } else {
+                title = "PROJECTS";
+            }
             break;
         case SCREEN_SETTINGS:
             title = "SETTINGS";
@@ -489,10 +546,10 @@ void App::drawHelp(Canvas& canvas, const Theme& theme) {
     };
     static const HelpLine songHelp[] = {
         {"OK/CTRL", "edit pattern"}, {"SPACE", "play song"}, {"DEL", "clear slot"},
-        {"[ ]", "cycle pattern"},
+        {"[ ]", "cycle pattern"}, {"E", "export wav"},
     };
     static const HelpLine playHelp[] = {
-        {"SPACE", "play/stop"}, {"1-8", "audition"},
+        {"SPACE", "play/stop"}, {"1-8", "audition"}, {"E", "export wav"},
     };
     static const HelpLine globals[] = {
         {"S", "save"}, {"O", "open"}, {"G", "settings"}, {"M", "led"},
@@ -517,9 +574,9 @@ void App::drawHelp(Canvas& canvas, const Theme& theme) {
         case SCREEN_PATTERN_EDIT:
             lines = patEditHelp; lineCount = 5; screenTitle = "PATTERN EDIT"; break;
         case SCREEN_SONG:
-            lines = songHelp; lineCount = 4; screenTitle = "SONG"; break;
+            lines = songHelp; lineCount = 5; screenTitle = "SONG"; break;
         case SCREEN_PLAY:
-            lines = playHelp; lineCount = 2; screenTitle = "PLAY"; break;
+            lines = playHelp; lineCount = 3; screenTitle = "PLAY"; break;
         default: return;
     }
 
@@ -613,9 +670,13 @@ void App::drawTabMenu(Canvas& canvas, const Theme& theme) {
     canvas.setTextSize(1);
     canvas.setTextDatum(top_right);
     canvas.setTextColor(theme.accent);
-    char slotStr[8];
-    snprintf(slotStr, sizeof(slotStr), "PROJ %02d", _currentProjectSlot + 1);
-    canvas.drawString(slotStr, SCREEN_WIDTH - 8, 7);
+    if (_project.name[0]) {
+        canvas.drawString(_project.name, SCREEN_WIDTH - 8, 7);
+    } else {
+        char slotStr[8];
+        snprintf(slotStr, sizeof(slotStr), "PROJ %02d", _currentProjectSlot + 1);
+        canvas.drawString(slotStr, SCREEN_WIDTH - 8, 7);
+    }
 }
 
 View* App::getView(Screen s) {

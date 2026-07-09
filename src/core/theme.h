@@ -3,12 +3,12 @@
 #include <cstdint>
 
 struct Theme {
-    uint16_t accent;     // full brightness accent
-    uint16_t dim;        // ~20% opacity on dark bg
-    uint16_t dark;       // ~15% for secondary elements
-    uint16_t highlight;  // bright variant for playheads/active
-    uint16_t bg;         // ~5% tint for background
-    uint16_t measure;    // ~35% for beat markers (columns 1,5,9,13)
+    uint16_t accent;        // full brightness accent
+    uint16_t dim;           // secondary text, beat markers
+    uint16_t dark;          // cell backgrounds
+    uint16_t highlight;     // bright variant for status messages
+    uint16_t bg;            // screen background
+    uint16_t textOnAccent;  // black or white depending on accent luminance
 };
 
 namespace ThemeOps {

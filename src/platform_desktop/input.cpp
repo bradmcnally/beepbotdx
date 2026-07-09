@@ -3,6 +3,7 @@
 
 static char lastChar = 0;
 static bool bHeld = false;
+static bool nHeld = false;
 static bool fnHeld = false;
 static bool tabHeld = false;
 
@@ -36,6 +37,10 @@ char Input::getChar() {
 
 bool Input::isBHeld() {
     return bHeld;
+}
+
+bool Input::isNHeld() {
+    return nHeld;
 }
 
 bool Input::isFnHeld() {

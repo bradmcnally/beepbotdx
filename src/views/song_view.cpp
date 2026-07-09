@@ -17,7 +17,7 @@ void SongView::enter() {
 
 void SongView::update(InputEvent event) {
     if (!_sequencer.isPlaying() &&
-        (_character.getState() == CHAR_PLAYING || _character.getState() == CHAR_BEAT)) {
+        (_character.getState() == CHAR_BEAT || _character.getState() == CHAR_DANCE_L || _character.getState() == CHAR_DANCE_R)) {
         _character.setState(CHAR_IDLE);
         _lastSongPos = 0xFF;
     }
@@ -87,7 +87,7 @@ void SongView::update(InputEvent event) {
                 }
                 if (hasContent) {
                     _sequencer.playSong(0);
-                    _character.setState(CHAR_PLAYING);
+                    _character.setState(CHAR_IDLE);
                     _character.say("let's go!");
                     _lastSongPos = 0xFF;
                 } else {
@@ -115,16 +115,17 @@ void SongView::draw(Canvas& canvas) {
         bool empty = (_project.song[i] == 0xFF);
 
         uint16_t bgColor;
-        if (selected) bgColor = TFT_WHITE;
-        else if (!empty) bgColor = theme.accent;
-        else bgColor = theme.dark;
+        uint16_t textColor;
+        if (selected) { bgColor = theme.accent; textColor = theme.textOnAccent; }
+        else if (!empty) { bgColor = theme.dark; textColor = theme.accent; }
+        else { bgColor = theme.dark; textColor = theme.dim; }
         canvas.fillRect(x, y, grid.cellW, grid.cellH, bgColor);
 
         if (!empty) {
             uint8_t patIdx = _project.song[i];
             Pattern& pat = _project.patterns[patIdx];
 
-            canvas.setTextColor(TFT_BLACK);
+            canvas.setTextColor(textColor);
             canvas.setTextDatum(top_left);
             char label[5];
             snprintf(label, sizeof(label), "%02d", patIdx + 1);
@@ -146,7 +147,7 @@ void SongView::draw(Canvas& canvas) {
                         uint16_t c = (pat.steps[step] & (1 << snd)) ? TFT_WHITE : theme.dim;
                         canvas.fillRect(mx + step * px, my + snd * px, px, px, c);
                     } else if (pat.steps[step] & (1 << snd)) {
-                        canvas.fillRect(mx + step * px, my + snd * px, px, px, TFT_BLACK);
+                        canvas.fillRect(mx + step * px, my + snd * px, px, px, textColor);
                     }
                 }
             }

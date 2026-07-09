@@ -46,7 +46,7 @@ void PlayView::update(InputEvent event) {
                 _character.setState(CHAR_IDLE);
             } else {
                 _sequencer.playSong(0);
-                _character.setState(CHAR_PLAYING);
+                _character.setState(CHAR_IDLE);
                 _character.say("let's go!");
             }
             break;
@@ -104,7 +104,7 @@ void PlayView::draw(Canvas& canvas) {
         canvas.drawString(posStr, infoRight, infoY);
     } else if (total > 0) {
         char posStr[10];
-        snprintf(posStr, sizeof(posStr), "1/%d", total);
+        snprintf(posStr, sizeof(posStr), "0/%d", total);
         canvas.drawString(posStr, infoRight, infoY);
     }
 

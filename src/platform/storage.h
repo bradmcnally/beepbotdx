@@ -15,7 +15,10 @@ bool loadProject(Project& project, uint8_t slot);
 bool projectExists(uint8_t slot);
 bool deleteProject(uint8_t slot);
 uint8_t loadProjectTheme(uint8_t slot);
+bool saveProjectTheme(uint8_t slot, uint8_t themeIndex);
+bool saveProjectName(uint8_t slot, const char* name);
 uint16_t loadProjectBpm(uint8_t slot);
+void loadProjectName(uint8_t slot, char* buf, uint8_t len);
 bool renderSongToWav(const Project& project, const char* path);
 
 }

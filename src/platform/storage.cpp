@@ -269,13 +269,14 @@ bool Storage::listWavFiles(const char* dir, char names[][32], uint8_t& count, ui
 }
 
 static const uint32_t PROJECT_MAGIC = 0x42505844; // "BPXD"
-static const uint8_t PROJECT_VERSION = 3;
+static const uint8_t PROJECT_VERSION = 1;
 
 struct ProjectHeader {
     uint32_t magic;
     uint8_t version;
     uint16_t bpm;
     uint8_t themeIndex;
+    char name[9];
     uint8_t soundOccupied[NUM_SOUNDS];
     char soundNames[NUM_SOUNDS][9];
     uint8_t soundLevels[NUM_SOUNDS];
@@ -317,8 +318,45 @@ uint8_t Storage::loadProjectTheme(uint8_t slot) {
     ProjectHeader hdr;
     if (file.read((uint8_t*)&hdr, sizeof(hdr)) != sizeof(hdr)) { file.close(); return 0; }
     file.close();
-    if (hdr.magic != PROJECT_MAGIC || hdr.version != PROJECT_VERSION) return 0;
+    if (hdr.magic != PROJECT_MAGIC || hdr.version < 1 || hdr.version > PROJECT_VERSION) return 0;
     return hdr.themeIndex;
+}
+
+bool Storage::saveProjectTheme(uint8_t slot, uint8_t themeIndex) {
+    if (!_sdReady || slot >= 8) return false;
+    char path[48];
+    projectPath(slot, path, sizeof(path));
+    File file = SD.open(path);
+    if (!file) return false;
+    ProjectHeader hdr;
+    if (file.read((uint8_t*)&hdr, sizeof(hdr)) != sizeof(hdr)) { file.close(); return false; }
+    file.close();
+    if (hdr.magic != PROJECT_MAGIC || hdr.version < 1 || hdr.version > PROJECT_VERSION) return false;
+    hdr.themeIndex = themeIndex;
+    file = SD.open(path, FILE_WRITE);
+    if (!file) return false;
+    file.write((const uint8_t*)&hdr, sizeof(hdr));
+    file.close();
+    return true;
+}
+
+bool Storage::saveProjectName(uint8_t slot, const char* name) {
+    if (!_sdReady || slot >= 8) return false;
+    char path[48];
+    projectPath(slot, path, sizeof(path));
+    File file = SD.open(path);
+    if (!file) return false;
+    ProjectHeader hdr;
+    if (file.read((uint8_t*)&hdr, sizeof(hdr)) != sizeof(hdr)) { file.close(); return false; }
+    file.close();
+    if (hdr.magic != PROJECT_MAGIC || hdr.version < 1 || hdr.version > PROJECT_VERSION) return false;
+    strncpy(hdr.name, name, 8);
+    hdr.name[8] = '\0';
+    file = SD.open(path, FILE_WRITE);
+    if (!file) return false;
+    file.write((const uint8_t*)&hdr, sizeof(hdr));
+    file.close();
+    return true;
 }
 
 uint16_t Storage::loadProjectBpm(uint8_t slot) {
@@ -330,8 +368,23 @@ uint16_t Storage::loadProjectBpm(uint8_t slot) {
     ProjectHeader hdr;
     if (file.read((uint8_t*)&hdr, sizeof(hdr)) != sizeof(hdr)) { file.close(); return DEFAULT_BPM; }
     file.close();
-    if (hdr.magic != PROJECT_MAGIC || hdr.version != PROJECT_VERSION) return DEFAULT_BPM;
+    if (hdr.magic != PROJECT_MAGIC || hdr.version < 1 || hdr.version > PROJECT_VERSION) return DEFAULT_BPM;
     return hdr.bpm;
+}
+
+void Storage::loadProjectName(uint8_t slot, char* buf, uint8_t len) {
+    buf[0] = '\0';
+    if (!_sdReady || slot >= 8) return;
+    char path[48];
+    projectPath(slot, path, sizeof(path));
+    File file = SD.open(path);
+    if (!file) return;
+    ProjectHeader hdr;
+    if (file.read((uint8_t*)&hdr, sizeof(hdr)) != sizeof(hdr)) { file.close(); return; }
+    file.close();
+    if (hdr.magic != PROJECT_MAGIC || hdr.version < 1 || hdr.version > PROJECT_VERSION) return;
+    strncpy(buf, hdr.name, len - 1);
+    buf[len - 1] = '\0';
 }
 
 bool Storage::saveProject(const Project& project, uint8_t slot) {
@@ -363,6 +416,8 @@ bool Storage::saveProject(const Project& project, uint8_t slot) {
     hdr.version = PROJECT_VERSION;
     hdr.bpm = project.bpm;
     hdr.themeIndex = project.themeIndex;
+    strncpy(hdr.name, project.name, 8);
+    hdr.name[8] = '\0';
     memcpy(hdr.patterns, project.patterns, sizeof(hdr.patterns));
     memcpy(hdr.song, project.song, sizeof(hdr.song));
 
@@ -397,13 +452,15 @@ bool Storage::loadProject(Project& project, uint8_t slot) {
     }
     file.close();
 
-    if (hdr.magic != PROJECT_MAGIC || hdr.version != PROJECT_VERSION) {
+    if (hdr.magic != PROJECT_MAGIC || hdr.version < 1 || hdr.version > PROJECT_VERSION) {
         Serial.println("[project] bad magic/version");
         return false;
     }
 
     project.bpm = hdr.bpm;
     project.themeIndex = hdr.themeIndex;
+    strncpy(project.name, hdr.name, 8);
+    project.name[8] = '\0';
     memcpy(project.patterns, hdr.patterns, sizeof(project.patterns));
     memcpy(project.song, hdr.song, sizeof(project.song));
 

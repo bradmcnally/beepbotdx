@@ -47,7 +47,7 @@ void PatternEditView::update(InputEvent event) {
                 _character.setState(CHAR_FOCUSED);
             } else {
                 _sequencer.playPattern(_patternIndex);
-                _character.setState(CHAR_PLAYING);
+                _character.setState(CHAR_IDLE);
             }
             break;
         case INPUT_NUM1: handleNumber(0); break;
@@ -64,7 +64,9 @@ void PatternEditView::update(InputEvent event) {
 
 void PatternEditView::toggleStep(uint8_t sound) {
     Pattern& pat = _project.patterns[_patternIndex];
+    bool wasSet = pat.steps[_cursorX] & (1 << sound);
     pat.steps[_cursorX] ^= (1 << sound);
+    if (!wasSet) _character.setState(CHAR_BEAT);
     _project.dirty = true;
 }
 
@@ -81,6 +83,7 @@ void PatternEditView::handleNumber(uint8_t num) {
         uint8_t step = _sequencer.nearestStep(millis());
         pat.steps[step] |= (1 << num);
         _project.dirty = true;
+        _character.setState(CHAR_BEAT);
     }
     triggerSound(num);
 }
@@ -156,7 +159,7 @@ void PatternEditView::draw(Canvas& canvas) {
                 if (dotH < 2) dotH = 2;
                 canvas.fillRect(px + (cellW - dotW) / 2, py + (cellH - dotH) / 2, dotW, dotH, NOTE_COLOR);
             } else {
-                uint16_t bg = (x % 4 == 0) ? theme.measure : theme.dark;
+                uint16_t bg = (x % 4 == 0) ? theme.dim : theme.dark;
                 canvas.fillRect(px + 1, py + 1, cellW - 2, cellH - 2, bg);
             }
 
@@ -181,8 +184,7 @@ void PatternEditView::draw(Canvas& canvas) {
         canvas.setTextColor(theme.accent);
         canvas.drawString(_project.sounds[_cursorY].name, hdrLeft + 4, infoY);
     } else {
-        const uint16_t gray50 = 0x7BEF;
-        canvas.setTextColor(gray50);
+        canvas.setTextColor(theme.dim);
         char sndLabel[8];
         snprintf(sndLabel, sizeof(sndLabel), "SND %02d", _cursorY + 1);
         canvas.drawString(sndLabel, hdrLeft + 4, infoY);

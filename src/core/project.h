@@ -11,6 +11,7 @@ struct Pattern {
 struct Project {
     uint16_t bpm;
     uint8_t themeIndex;
+    char name[9];
     SoundSlot sounds[NUM_SOUNDS];
     Pattern patterns[NUM_PATTERNS];
     uint8_t song[NUM_SONG_POSITIONS];

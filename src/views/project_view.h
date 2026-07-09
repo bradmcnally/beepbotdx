@@ -16,6 +16,9 @@ public:
     void clearClose() { _closeRequested = false; }
     bool didLoad() const { return _loaded; }
     void clearLoad() { _loaded = false; }
+    bool inRename() const { return _renaming; }
+    uint8_t getCursor() const { return _cursor; }
+    uint8_t getSlotTheme() const { return _slotTheme[_cursor]; }
 
 private:
     void doSwitch();
@@ -33,4 +36,10 @@ private:
     uint16_t _slotBpm[8];
     char _statusMsg[24];
     uint32_t _statusTime;
+
+    // Rename state
+    bool _renaming;
+    char _renameBuffer[9];
+    uint8_t _renameLen;
+    char _slotName[8][9];
 };

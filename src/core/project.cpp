@@ -4,6 +4,7 @@
 void Project::init(Project& p) {
     p.bpm = DEFAULT_BPM;
     p.themeIndex = 0;
+    p.name[0] = '\0';
 
     for (int i = 0; i < NUM_SOUNDS; i++) {
         SoundSlotOps::free(p.sounds[i]);

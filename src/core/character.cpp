@@ -47,13 +47,12 @@ const char* Character::getFace() const {
             if (frame == 1) return "(*o*)";
             return "(*O*)";
         }
-        case CHAR_PLAYING:   return "(>_<)b";
         case CHAR_SAVING:    return "(^_^;)";
         case CHAR_ERROR:     return "(>_<)";
         case CHAR_SUCCESS:   return "\\(^o^)/";
-        case CHAR_BEAT:      return "(^O^)";
-        case CHAR_FLIP:      return "(╯°□°)╯︵ ♪♫♬";
-        case CHAR_FLIP_BACK: return "♪♫♬ノ(°_°ノ)";
+        case CHAR_BEAT:      return "<(^_^)>";
+        case CHAR_FLIP:      return "(╯°□°)╯︵ ♪♫♬♪";
+        case CHAR_FLIP_BACK: return "♪♫♬♪ノ(°_°ノ)";
         case CHAR_SLEEPING: {
             uint32_t frame = (elapsed / 600) % 4;
             if (frame == 0) return "(-_-)Zzz";
@@ -62,9 +61,14 @@ const char* Character::getFace() const {
             return "(-_-)zzz";
         }
         case CHAR_STARTLED:  return "(O_O)!";
-        case CHAR_DANCE_L:   return "(~^_^)~";
-        case CHAR_DANCE_R:   return "~(^_^~)";
+        case CHAR_DANCE_L:   return "<(^_^<)";
+        case CHAR_DANCE_R:   return "(>^_^)>";
         case CHAR_JAMMING:   return "\\(>.<)/";
+        case CHAR_DIZZY:     return "(@_@)";
+        case CHAR_DEAD:      return "(x_x)";
+        case CHAR_CRYING:    return "(T_T)";
+        case CHAR_WINK:      return "(-_o)";
+        case CHAR_SUSPICIOUS: return "(o_O)";
     }
     return "(^_^)";
 }
@@ -86,7 +90,8 @@ void Character::tick() {
             _state = _prevState;
         }
     }
-    if (_state == CHAR_SUCCESS || _state == CHAR_ERROR || _state == CHAR_FLIP_BACK) {
+    if (_state == CHAR_SUCCESS || _state == CHAR_ERROR || _state == CHAR_FLIP_BACK
+        || _state == CHAR_WINK || _state == CHAR_CRYING || _state == CHAR_DEAD || _state == CHAR_SUSPICIOUS) {
         if (elapsed > 1500) {
             _state = CHAR_IDLE;
         }

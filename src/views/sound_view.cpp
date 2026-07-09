@@ -61,7 +61,7 @@ void SoundView::update(InputEvent event) {
         if (event == INPUT_ENTER) {
             SoundSlotOps::free(_project.sounds[_cursor]);
             _project.dirty = true;
-            _character.setState(CHAR_SUCCESS);
+            _character.setState(CHAR_CRYING);
             _character.say("cleared");
             _confirmingDelete = false;
         } else if (event == INPUT_ESC || event == INPUT_BACK) {
@@ -323,7 +323,7 @@ void SoundView::update(InputEvent event) {
                     SoundSlotOps::free(_previewSlot);
                     if (Storage::loadWav(_previewSlot, path)) {
                         Audio::triggerSound(_previewSlot.samples, _previewSlot.length, _previewSlot.sampleRate);
-                        _character.setState(CHAR_PLAYING);
+                        _character.setState(CHAR_IDLE);
                     }
                     break;
                 }
@@ -416,27 +416,18 @@ void SoundView::draw(Canvas& canvas) {
 
                 // Cell background
                 uint16_t bgColor;
-                if (flashing) bgColor = theme.dim;
-                else if (selected) bgColor = TFT_WHITE;
-                else if (occupied) bgColor = theme.accent;
-                else bgColor = theme.dark;
+                uint16_t textColor;
+                if (flashing) { bgColor = theme.dim; textColor = theme.textOnAccent; }
+                else if (selected) { bgColor = theme.accent; textColor = theme.textOnAccent; }
+                else { bgColor = theme.dark; textColor = occupied ? theme.accent : theme.dim; }
                 canvas.fillRect(x, y, grid.cellW, grid.cellH, bgColor);
 
-                // Cell content: "01\nName"
                 canvas.setTextDatum(top_left);
+                canvas.setTextColor(textColor);
                 char numStr[4];
                 snprintf(numStr, sizeof(numStr), "%02d", i + 1);
-
-                if (occupied) {
-                    uint16_t textColor = (bgColor == theme.dark) ? TFT_WHITE : TFT_BLACK;
-                    canvas.setTextColor(textColor);
-                    canvas.drawString(numStr, x + 4, y + 4);
-                    canvas.drawString(_project.sounds[i].name, x + 4, y + 14);
-                } else {
-                    canvas.setTextColor(selected ? TFT_BLACK : TFT_WHITE);
-                    canvas.drawString(numStr, x + 4, y + 4);
-                    canvas.drawString("empty", x + 4, y + 14);
-                }
+                canvas.drawString(numStr, x + 4, y + 4);
+                if (occupied) canvas.drawString(_project.sounds[i].name, x + 4, y + 14);
             }
 
 
@@ -486,7 +477,7 @@ void SoundView::draw(Canvas& canvas) {
             canvas.drawString("to record", leftX + boxW / 2, textY + 10);
 
             canvas.setTextColor(theme.accent);
-            canvas.drawString("'i' import", rightX + boxW / 2, textY);
+            canvas.drawString("[i] import", rightX + boxW / 2, textY);
             canvas.drawString("from SD card", rightX + boxW / 2, textY + 10);
             break;
         }
@@ -693,17 +684,41 @@ void SoundView::draw(Canvas& canvas) {
         }
 
         case STATE_RENAME: {
+            const int margin = 3;
+            const int hdrGridW = SCREEN_WIDTH - margin * 2;
+            const int hdrCellW = (hdrGridW - margin * 3) / 4;
+            const int hdrContentW = hdrCellW * 4 + margin * 3;
+            const int hdrLeft = margin + (hdrGridW - hdrContentW) / 2;
+            const int infoY = 23;
 
-            char slotLabel[16];
-            snprintf(slotLabel, sizeof(slotLabel), "Slot %d", _cursor + 1);
-            canvas.setTextColor(theme.dark);
-            canvas.drawString(slotLabel, 8, startY + 14);
+            canvas.setTextColor(theme.accent);
+            canvas.setTextDatum(top_left);
+            canvas.drawString("RENAME", hdrLeft + 4, infoY);
 
-            // Show typed name with cursor
+            canvas.setTextColor(theme.dim);
+            canvas.setTextDatum(top_right);
+            canvas.drawString("8 CHAR", SCREEN_WIDTH - margin - 4, infoY);
+            canvas.setTextDatum(top_left);
+
+            // Show typed name with blinking cursor
             char display[12];
-            snprintf(display, sizeof(display), "%s_", _renameBuffer);
-            canvas.setTextColor(theme.highlight);
-            canvas.drawString(display, 8, startY + 34);
+            bool showCursor = (millis() / 400) % 2 == 0;
+            if (showCursor) {
+                snprintf(display, sizeof(display), "%s_", _renameBuffer);
+            } else {
+                snprintf(display, sizeof(display), "%s ", _renameBuffer);
+            }
+            canvas.setTextColor(TFT_WHITE);
+            canvas.setTextDatum(top_left);
+            canvas.setTextSize(2);
+            int nameY = infoY + 12 + (SCREEN_HEIGHT - 14 - (infoY + 12)) / 2 - 14;
+            canvas.drawString(display, hdrLeft + 4, nameY);
+            canvas.setTextSize(1);
+
+            canvas.setTextColor(theme.accent);
+            canvas.setTextDatum(top_center);
+            canvas.drawString("[Esc] Cancel    [Ok] Confirm", SCREEN_WIDTH / 2, SCREEN_HEIGHT - 14);
+            canvas.setTextDatum(top_left);
 
             break;
         }
@@ -774,7 +789,7 @@ void SoundView::exit() {
 void SoundView::startRecording() {
     SoundSlot& slot = _project.sounds[_cursor];
     if (!SoundSlotOps::allocate(slot, MAX_SAMPLE_LENGTH)) {
-        _character.setState(CHAR_ERROR);
+        _character.setState(CHAR_DEAD);
         _character.say("no memory!");
         snprintf(_statusMsg, sizeof(_statusMsg), "NO MEMORY");
         _statusTime = millis();

@@ -41,6 +41,7 @@ class App {
 public:
     void init(AppCallbacks callbacks);
     void loadSlot(uint8_t slot);
+    void openProjectList(uint8_t slot);
     void tick();
 
     Project& getProject() { return _project; }
@@ -96,6 +97,9 @@ private:
 
     // Brightness (managed by platform via callback)
     uint8_t _brightness = 80;
+public:
+    void setBrightness(uint8_t percent) { _brightness = percent; }
+private:
 
     AppCallbacks _callbacks = {};
 

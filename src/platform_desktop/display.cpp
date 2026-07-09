@@ -55,3 +55,7 @@ void Display::shutdown() {
     SDL_DestroyWindow(_window);
     SDL_Quit();
 }
+
+void Display::setBrightness(uint8_t value) {
+    (void)value;
+}
