@@ -177,15 +177,7 @@ void PatternSelectView::draw(Canvas& canvas) {
     }
 
     if (_confirmingDelete) {
-        uint16_t* buf = canvas.buffer();
-        int total = SCREEN_WIDTH * SCREEN_HEIGHT;
-        for (int p = 0; p < total; p++) {
-            uint16_t c = buf[p];
-            uint8_t r = (c >> 11) & 0x1F;
-            uint8_t g = (c >> 5) & 0x3F;
-            uint8_t b = c & 0x1F;
-            buf[p] = ((r * 15 / 100) << 11) | ((g * 15 / 100) << 5) | (b * 15 / 100);
-        }
+        canvas.darken();
 
         const int boxW = 150;
         const int boxH = 60;
@@ -201,7 +193,7 @@ void PatternSelectView::draw(Canvas& canvas) {
         canvas.drawString(msg, boxX + boxW / 2, boxY + 16);
 
         canvas.setTextColor(theme.accent);
-        canvas.drawString("OK:YES  ESC:NO", boxX + boxW / 2, boxY + 36);
+        canvas.drawString("YES:OK  NO:ESC", boxX + boxW / 2, boxY + 36);
     }
 }
 

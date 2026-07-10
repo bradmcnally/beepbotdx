@@ -148,11 +148,9 @@ void ProjectView::update(InputEvent event) {
     switch (event) {
         case INPUT_LEFT:
             if (_cursor % 2 > 0) _cursor--;
-            else if (_cursor >= 2) _cursor -= 1;
             break;
         case INPUT_RIGHT:
             if (_cursor % 2 < 1) _cursor++;
-            else if (_cursor < 6) _cursor += 1;
             break;
         case INPUT_UP:
             if (_cursor >= 2) _cursor -= 2;
@@ -298,7 +296,7 @@ void ProjectView::draw(Canvas& canvas) {
 
         canvas.setTextColor(slotTheme.accent);
         canvas.setTextDatum(top_center);
-        canvas.drawString("[Esc] Cancel    [Ok] Confirm", SCREEN_WIDTH / 2, SCREEN_HEIGHT - 14);
+        canvas.drawString("CONFIRM:OK  CANCEL:ESC", SCREEN_WIDTH / 2, SCREEN_HEIGHT - 14);
         canvas.setTextDatum(top_left);
         return;
     }
@@ -348,24 +346,17 @@ void ProjectView::draw(Canvas& canvas) {
         if (_slotExists[i]) {
             if (_slotName[i][0]) {
                 canvas.drawString(_slotName[i], x + 4, y + 14);
-            } else {
-                char bpmStr[8];
-                snprintf(bpmStr, sizeof(bpmStr), "%dbpm", _slotBpm[i]);
-                canvas.drawString(bpmStr, x + 4, y + 14);
             }
+            char bpmStr[8];
+            snprintf(bpmStr, sizeof(bpmStr), "%d", _slotBpm[i]);
+            canvas.setTextDatum(top_right);
+            canvas.drawString(bpmStr, x + grid.cellW - 3, y + 4);
+            canvas.setTextDatum(top_left);
         }
     }
 
     if (_confirming) {
-        uint16_t* buf = canvas.buffer();
-        int total = SCREEN_WIDTH * SCREEN_HEIGHT;
-        for (int p = 0; p < total; p++) {
-            uint16_t c = buf[p];
-            uint8_t r = (c >> 11) & 0x1F;
-            uint8_t g = (c >> 5) & 0x3F;
-            uint8_t b = c & 0x1F;
-            buf[p] = ((r * 15 / 100) << 11) | ((g * 15 / 100) << 5) | (b * 15 / 100);
-        }
+        canvas.darken();
 
         const int boxW = 180;
         const int boxH = 76;
@@ -379,20 +370,12 @@ void ProjectView::draw(Canvas& canvas) {
         canvas.drawString("UNSAVED CHANGES", boxX + boxW / 2, boxY + 16);
 
         canvas.setTextColor(theme.accent);
-        canvas.drawString("OK:SAVE  ESC:CANCEL", boxX + boxW / 2, boxY + 38);
-        canvas.drawString("DEL:DISCARD", boxX + boxW / 2, boxY + 54);
+        canvas.drawString("SAVE:OK  CANCEL:ESC", boxX + boxW / 2, boxY + 38);
+        canvas.drawString("DISCARD:DEL", boxX + boxW / 2, boxY + 54);
     }
 
     if (_deleting) {
-        uint16_t* buf = canvas.buffer();
-        int total = SCREEN_WIDTH * SCREEN_HEIGHT;
-        for (int p = 0; p < total; p++) {
-            uint16_t c = buf[p];
-            uint8_t r = (c >> 11) & 0x1F;
-            uint8_t g = (c >> 5) & 0x3F;
-            uint8_t b = c & 0x1F;
-            buf[p] = ((r * 15 / 100) << 11) | ((g * 15 / 100) << 5) | (b * 15 / 100);
-        }
+        canvas.darken();
 
         const int boxW = 150;
         const int boxH = 60;
@@ -408,7 +391,7 @@ void ProjectView::draw(Canvas& canvas) {
         canvas.drawString(msg, boxX + boxW / 2, boxY + 16);
 
         canvas.setTextColor(theme.accent);
-        canvas.drawString("OK:YES  ESC:NO", boxX + boxW / 2, boxY + 36);
+        canvas.drawString("YES:OK  NO:ESC", boxX + boxW / 2, boxY + 36);
     }
 
 

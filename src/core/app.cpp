@@ -419,9 +419,9 @@ void App::render() {
             Theme slotTheme = ThemeOps::getPreset(_projectView.getSlotTheme());
             drawHeader(canvas, slotTheme);
         } else {
-            Theme whiteTheme = theme;
-            whiteTheme.accent = TFT_WHITE;
-            drawHeader(canvas, whiteTheme);
+            Theme grayTheme = theme;
+            grayTheme.accent = ThemeOps::rgb565(72, 72, 72);
+            drawHeader(canvas, grayTheme);
         }
     } else {
         drawHeader(canvas, theme);
@@ -518,44 +518,36 @@ void App::drawHeader(Canvas& canvas, const Theme& theme) {
 struct HelpLine { const char* key; const char* action; };
 
 void App::drawHelp(Canvas& canvas, const Theme& theme) {
-    uint16_t* buf = canvas.buffer();
-    int total = SCREEN_WIDTH * SCREEN_HEIGHT;
-    for (int p = 0; p < total; p++) {
-        uint16_t c = buf[p];
-        uint8_t r = (c >> 11) & 0x1F;
-        uint8_t g = (c >> 5) & 0x3F;
-        uint8_t b = c & 0x1F;
-        buf[p] = ((r * 15 / 100) << 11) | ((g * 15 / 100) << 5) | (b * 15 / 100);
-    }
+    canvas.darken();
 
     canvas.setTextSize(1);
 
     static const HelpLine soundHelp[] = {
-        {"OK/CTRL", "Open slot"}, {"SPACE", "Audition"}, {"DEL", "Clear"},
+        {"CTRL/OK", "Edit/Record"}, {"SPACE", "Audition"}, {"DEL", "Clear"},
         {"I", "Import wav"}, {"R", "Rename"}, {"1-8", "Audition"},
     };
     static const HelpLine trimHelp[] = {
         {"L/R", "Adjust point"}, {"U/D", "Switch start/end"}, {"SPACE", "Audition"},
-        {"+/-", "Volume"}, {"OK/CTRL", "Apply"}, {"ESC", "Cancel"},
+        {"+/-", "Volume"}, {"CTRL/OK", "Apply"}, {"ESC", "Cancel"},
     };
     static const HelpLine patSelectHelp[] = {
-        {"OK/CTRL", "Edit"}, {"SPACE", "Audition"}, {"DEL", "Clear"},
+        {"CTRL/OK", "Edit"}, {"SPACE", "Audition"}, {"DEL", "Clear"},
         {"Fn C", "Copy"}, {"Fn V", "Paste"},
     };
     static const HelpLine patEditHelp[] = {
-        {"OK/CTRL", "Toggle step"}, {"SPACE", "Play/stop"}, {"ESC", "Back"},
+        {"CTRL/OK", "Toggle step"}, {"SPACE", "Play/stop"}, {"ESC", "Back"},
         {"1-8", "Audition"}, {"Fn 1-8", "Live record"},
     };
     static const HelpLine songHelp[] = {
-        {"OK/CTRL", "Edit pattern"}, {"SPACE", "Play song"}, {"DEL", "Clear slot"},
+        {"CTRL/OK", "Edit pattern"}, {"SPACE", "Play song"}, {"DEL", "Clear slot"},
         {"[/]", "Cycle pattern"}, {"E", "Export wav"},
     };
     static const HelpLine playHelp[] = {
         {"SPACE", "Play/stop"}, {"1-8", "Audition"}, {"E", "Export wav"},
     };
     static const HelpLine globals[] = {
-        {"S", "Save proj"}, {"O", "Open proj"}, {"G", "Settings"}, {"M", "Led Metronome"},
-        {"+/-", "Volume"}, {"B +/-", "BPM"}, {"Fn +/-", "Brightness"}, {"TAB", "Navigate"}, {"TAB ^/v ", "Menu"},
+        {"S", "Save proj"}, {"O", "Open proj"}, {"G", "Settings"}, {"M", "LED mode"}, {"F", "Table flip"},
+        {"+/-", "Volume"}, {"B +/-", "BPM"}, {"N +/-", "Brightness"}, {"TAB", "Navigate"}, {"TAB ^/v ", "Menu"},
     };
 
     const HelpLine* lines = nullptr;
@@ -655,15 +647,7 @@ void App::drawHelp(Canvas& canvas, const Theme& theme) {
 }
 
 void App::drawTabMenu(Canvas& canvas, const Theme& theme) {
-    uint16_t* buf = canvas.buffer();
-    int total = SCREEN_WIDTH * SCREEN_HEIGHT;
-    for (int p = 0; p < total; p++) {
-        uint16_t c = buf[p];
-        uint8_t r = (c >> 11) & 0x1F;
-        uint8_t g = (c >> 5) & 0x3F;
-        uint8_t b = c & 0x1F;
-        buf[p] = ((r * 15 / 100) << 11) | ((g * 15 / 100) << 5) | (b * 15 / 100);
-    }
+    canvas.darken();
 
     const int itemH = 16 + 10;
     const int totalH = tabMenuCount * 16 + (tabMenuCount - 1) * 10;

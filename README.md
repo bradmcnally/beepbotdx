@@ -6,13 +6,13 @@ Record sounds with the built-in mic, import WAV files from SD, build patterns, a
 
 ## Features
 
-- **8 projects** - 8 color options
+- **8 projects** - 8 color themes, renameable
 - **8 sound slots** - 16kHz mono audio, 2 second max sample length, trim recorded or imported wav files
 - **16 pattern slots** - with copy/paste
 - **16-step sequencer** — 16 patterns, each with 8 tracks, 4-voice polyphony
 - **Song mode** — chain up to 16 patterns
 - **Live play** — trigger sounds and patterns in real time with playback visualization
-- **Settings** — auto-save, LED metronome mode, Confirm delete
+- **Settings** — auto-save, LED mode (on/metronome/off), confirm delete, boot to project
 
 
 - BPM range: 60-240
@@ -95,10 +95,11 @@ Navigation uses a tab menu (hold TAB + arrows or tap to cycle).
 | M | Cycle LED mode |
 | +/- | Volume |
 | B+/- | BPM |
-| Fn+/- | Brightness |
+| N+/- | Brightness |
 | H | Help overlay |
+| F | Table flip |
 | SPACE | Play/audition |
-| OK/CTRL | Select/confirm |
+| CTRL/OK | Select/confirm |
 | 1-8 | Trigger sounds |
 
 Press **H** on any screen for context-sensitive keyboard shortcuts.
@@ -107,7 +108,7 @@ Press **H** on any screen for context-sensitive keyboard shortcuts.
 
 | Key | Action |
 |-----|--------|
-| OK/CTRL | Open slot |
+| CTRL/OK | Edit/Record |
 | SPACE | Audition |
 | DEL | Clear |
 | I | Import WAV |
@@ -122,14 +123,14 @@ Press **H** on any screen for context-sensitive keyboard shortcuts.
 | U/D | Switch between start/end point |
 | SPACE | Audition |
 | +/- | Volume |
-| OK/CTRL | Apply |
+| CTRL/OK | Apply |
 | ESC | Cancel |
 
 ### Pattern Select
 
 | Key | Action |
 |-----|--------|
-| OK/CTRL | Edit pattern |
+| CTRL/OK | Edit pattern |
 | SPACE | Audition |
 | DEL | Clear |
 | Fn+C | Copy |
@@ -139,7 +140,7 @@ Press **H** on any screen for context-sensitive keyboard shortcuts.
 
 | Key | Action |
 |-----|--------|
-| OK/CTRL | Toggle step |
+| CTRL/OK | Toggle step |
 | SPACE | Play/stop |
 | ESC | Back |
 | 1-8 | Audition |
@@ -149,10 +150,11 @@ Press **H** on any screen for context-sensitive keyboard shortcuts.
 
 | Key | Action |
 |-----|--------|
-| OK/CTRL | Edit pattern |
+| CTRL/OK | Edit pattern |
 | SPACE | Play song |
 | DEL | Clear slot |
 | [ ] | Cycle pattern in slot |
+| E | Export WAV |
 
 ### Play
 
@@ -160,5 +162,6 @@ Press **H** on any screen for context-sensitive keyboard shortcuts.
 |-----|--------|
 | SPACE | Play/stop |
 | 1-8 | Audition |
+| E | Export WAV |
 
 ## Constraints

@@ -54,6 +54,7 @@ bool Input::isTabHeld() {
 InputEvent Input::poll() {
     const Uint8* keys = SDL_GetKeyboardState(nullptr);
     bHeld = keys[SDL_SCANCODE_B] != 0;
+    nHeld = keys[SDL_SCANCODE_N] != 0;
     fnHeld = keys[SDL_SCANCODE_LSHIFT] || keys[SDL_SCANCODE_RSHIFT];
     tabHeld = keys[SDL_SCANCODE_TAB] != 0;
 

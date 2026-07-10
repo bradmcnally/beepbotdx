@@ -1,4 +1,5 @@
 #include "platform/storage.h"
+#include "core/project_header.h"
 #include "config.h"
 #include <cstdio>
 #include <cstring>
@@ -217,28 +218,12 @@ bool Storage::listWavFiles(const char* dir, char names[][32], uint8_t& count, ui
     return count > 0;
 }
 
-static const uint32_t PROJECT_MAGIC = 0x42505844; // "BPXD"
-static const uint8_t PROJECT_VERSION = 1;
-
-struct ProjectHeader {
-    uint32_t magic;
-    uint8_t version;
-    uint16_t bpm;
-    uint8_t themeIndex;
-    char name[9];
-    uint8_t soundOccupied[NUM_SOUNDS];
-    char soundNames[NUM_SOUNDS][9];
-    uint8_t soundLevels[NUM_SOUNDS];
-    Pattern patterns[NUM_PATTERNS];
-    uint8_t song[NUM_SONG_POSITIONS];
-};
-
 static void projectDir(uint8_t slot, char* buf, size_t len) {
-    snprintf(buf, len, "%s/p%d", BASE_DIR, slot + 1);
+    snprintf(buf, len, "%s/%02d", BASE_DIR, slot + 1);
 }
 
 static void projectPath(uint8_t slot, char* buf, size_t len) {
-    snprintf(buf, len, "%s/p%d/project.dat", BASE_DIR, slot + 1);
+    snprintf(buf, len, "%s/%02d/project.dat", BASE_DIR, slot + 1);
 }
 
 bool Storage::projectExists(uint8_t slot) {
@@ -459,7 +444,14 @@ bool Storage::renderSongToWav(const Project& project, const char* path) {
     }
 
     uint32_t samplesPerStep = SAMPLE_RATE * 60 / project.bpm / 4;
-    uint32_t totalSteps = NUM_SONG_POSITIONS * NUM_STEPS;
+
+    uint8_t songLength = 0;
+    for (uint8_t i = 0; i < NUM_SONG_POSITIONS; i++) {
+        if (project.song[i] < NUM_PATTERNS) songLength = i + 1;
+    }
+    if (songLength == 0) songLength = 1;
+
+    uint32_t totalSteps = songLength * NUM_STEPS;
     uint32_t totalSamples = totalSteps * samplesPerStep;
 
     FILE* f = fopen(fullPath, "wb");

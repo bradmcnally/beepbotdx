@@ -88,7 +88,7 @@ static void showBootScreen(uint16_t accentColor) {
     }
 
     canvas.setTextSize(1);
-    canvas.setTextColor(0x7BEF);
+    canvas.setTextColor(accentColor);
     canvas.setTextDatum(top_left);
     canvas.drawString(FIRMWARE_VERSION, 4, SCREEN_HEIGHT - 12);
 
@@ -96,11 +96,11 @@ static void showBootScreen(uint16_t accentColor) {
     canvas.setTextDatum(top_center);
     canvas.drawString("beepbot", SCREEN_WIDTH / 2, SCREEN_HEIGHT - 12);
 
-    canvas.setTextColor(0x7BEF);
+    canvas.setTextColor(accentColor);
     canvas.setTextDatum(top_right);
     canvas.drawString("HELP", SCREEN_WIDTH - 4, SCREEN_HEIGHT - 12);
     int hX = SCREEN_WIDTH - 4 - (4 * 6);
-    canvas.fillRect(hX, SCREEN_HEIGHT - 12 + 8, 5, 1, 0x7BEF);
+    canvas.fillRect(hX, SCREEN_HEIGHT - 12 + 8, 5, 1, accentColor);
 
     Display::endFrame();
 

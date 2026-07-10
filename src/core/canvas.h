@@ -91,6 +91,17 @@ public:
         }
     }
 
+    void darken() {
+        int total = _width * _height;
+        for (int p = 0; p < total; p++) {
+            uint16_t c = _buffer[p];
+            uint8_t r = (c >> 11) & 0x1F;
+            uint8_t g = (c >> 5) & 0x3F;
+            uint8_t b = c & 0x1F;
+            _buffer[p] = ((r * 15 / 100) << 11) | ((g * 15 / 100) << 5) | (b * 15 / 100);
+        }
+    }
+
     void setTextColor(uint16_t color) { _textColor = color; }
     void setTextSize(float size) { _textSize = size; }
     void setTextDatum(TextDatum datum) { _textDatum = datum; }

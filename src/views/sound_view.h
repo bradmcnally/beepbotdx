@@ -30,11 +30,29 @@ private:
         STATE_RENAME,
     };
 
+    void updateList(InputEvent event);
+    void updateRecordReady(InputEvent event);
+    void updateCountdown(InputEvent event);
+    void updateRecording(InputEvent event);
+    void updateRecordDone();
+    void updateTrim(InputEvent event);
+    void updateLoadBrowser(InputEvent event);
+    void updateRename(InputEvent event);
+
+    void drawList(Canvas& canvas, const struct Theme& theme);
+    void drawRecordReady(Canvas& canvas, const struct Theme& theme);
+    void drawCountdown(Canvas& canvas, const struct Theme& theme);
+    void drawRecording(Canvas& canvas, const struct Theme& theme);
+    void drawRecordDone(Canvas& canvas, const struct Theme& theme);
+    void drawTrim(Canvas& canvas, const struct Theme& theme);
+    void drawLoadBrowser(Canvas& canvas, const struct Theme& theme);
+    void drawRename(Canvas& canvas, const struct Theme& theme);
+
     void startRecording();
     void stopRecording();
     void triggerSlot(uint8_t index);
     void applyTrim();
-    void drawWaveform(Canvas& canvas, int x, int y, int w, int h);
+    void drawWaveform(Canvas& canvas, const struct Theme& theme, int x, int y, int w, int h);
 
     Project& _project;
     Character& _character;
