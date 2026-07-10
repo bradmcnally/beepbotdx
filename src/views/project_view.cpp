@@ -318,7 +318,7 @@ void ProjectView::draw(Canvas& canvas) {
                 bgColor = slotTheme.accent;
                 textColor = TFT_BLACK;
             } else {
-                bgColor = TFT_WHITE;
+                bgColor = theme.accent;
                 textColor = TFT_BLACK;
             }
         } else if (_slotExists[i]) {
@@ -326,7 +326,7 @@ void ProjectView::draw(Canvas& canvas) {
             bgColor = slotTheme.dark;
             textColor = slotTheme.accent;
         } else {
-            bgColor = ThemeOps::rgb565(20, 20, 20);
+            bgColor = ThemeOps::rgb565(15, 15, 15);
             textColor = ThemeOps::rgb565(72, 72, 72);
         }
         canvas.fillRect(x, y, grid.cellW, grid.cellH, bgColor);

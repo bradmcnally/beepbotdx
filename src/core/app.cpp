@@ -414,15 +414,9 @@ void App::render() {
     Theme theme = ThemeOps::getPreset(_project.themeIndex);
     canvas.fillScreen(theme.bg);
 
-    if (_currentScreen == SCREEN_PROJECT) {
-        if (_projectView.inRename()) {
-            Theme slotTheme = ThemeOps::getPreset(_projectView.getSlotTheme());
-            drawHeader(canvas, slotTheme);
-        } else {
-            Theme grayTheme = theme;
-            grayTheme.accent = ThemeOps::rgb565(72, 72, 72);
-            drawHeader(canvas, grayTheme);
-        }
+    if (_currentScreen == SCREEN_PROJECT && _projectView.inRename()) {
+        Theme slotTheme = ThemeOps::getPreset(_projectView.getSlotTheme());
+        drawHeader(canvas, slotTheme);
     } else {
         drawHeader(canvas, theme);
     }
