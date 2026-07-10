@@ -27,6 +27,8 @@ enum CharacterState {
     CHAR_DANCE_UP_L,
     CHAR_DANCE_UP_R,
     CHAR_SHIFTY,
+    CHAR_POINT_L,
+    CHAR_POINT_R,
 };
 
 class Character {

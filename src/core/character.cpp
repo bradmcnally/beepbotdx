@@ -7,8 +7,14 @@ static const uint32_t SLEEP_TIMEOUT = 30000;
 void Character::setState(CharacterState state) {
     if (state == CHAR_BEAT || state == CHAR_DANCE_L || state == CHAR_DANCE_R
         || state == CHAR_DANCE_UP_L || state == CHAR_DANCE_UP_R
+        || state == CHAR_POINT_L || state == CHAR_POINT_R
         || state == CHAR_JAMMING || state == CHAR_RUDE) {
-        _prevState = _state;
+        if (_state != CHAR_BEAT && _state != CHAR_DANCE_L && _state != CHAR_DANCE_R
+            && _state != CHAR_DANCE_UP_L && _state != CHAR_DANCE_UP_R
+            && _state != CHAR_POINT_L && _state != CHAR_POINT_R
+            && _state != CHAR_JAMMING && _state != CHAR_RUDE) {
+            _prevState = _state;
+        }
     }
     _state = state;
     _stateTime = millis();
@@ -75,6 +81,8 @@ const char* Character::getFace() const {
         case CHAR_LISTENING: return "d(-_-)b";
         case CHAR_DANCE_UP_L: return "┗(^o^)┛";
         case CHAR_DANCE_UP_R: return "┏(^0^)┓";
+        case CHAR_POINT_L:   return "<(^_^<)";
+        case CHAR_POINT_R:  return "(>^_^)>";
         case CHAR_SHIFTY: {
             uint32_t frame = (elapsed / 500) % 2;
             if (frame == 0) return "(<_<)";
@@ -119,7 +127,9 @@ void Character::tick() {
             _state = CHAR_IDLE;
         }
     }
-    if (_state == CHAR_LISTENING) {
+    if (_state == CHAR_LISTENING || _state == CHAR_DANCE_L || _state == CHAR_DANCE_R
+        || _state == CHAR_DANCE_UP_L || _state == CHAR_DANCE_UP_R
+        || _state == CHAR_POINT_L || _state == CHAR_POINT_R) {
         if (elapsed > 600) {
             _state = CHAR_IDLE;
             _stateTime = now;

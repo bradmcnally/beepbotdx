@@ -55,19 +55,19 @@ void App::onStep(uint8_t step) {
     app->_stepTriggerCount = 0;
 
     // Pick dance style at start of playback
-    if (step == 0 && app->_danceStyle == 0xFF) app->_danceStyle = rand() % 3;
+    if (step == 0 && app->_danceStyle == 0xFF) app->_danceStyle = rand() % 4;
 
     // Animate on beat
     if (step % 4 == 0) {
         app->_character.setState(CHAR_LISTENING);
-        if ((rand() & 31) == 0) {
-            app->_character.setState(CHAR_RUDE);
-        } else if (app->_danceStyle == 0) {
+        if (app->_danceStyle == 0) {
             app->_character.setState((step / 4) % 2 == 0 ? CHAR_DANCE_R : CHAR_DANCE_L);
         } else if (app->_danceStyle == 1) {
             app->_character.setState(CHAR_BEAT);
-        } else {
+        } else if (app->_danceStyle == 2) {
             app->_character.setState((step / 4) % 2 == 0 ? CHAR_DANCE_UP_L : CHAR_DANCE_UP_R);
+        } else {
+            app->_character.setState((step / 4) % 2 == 0 ? CHAR_POINT_R : CHAR_POINT_L);
         }
     } else if (app->_character.getState() == CHAR_IDLE) {
         app->_character.setState(CHAR_LISTENING);
@@ -530,7 +530,7 @@ void App::drawHelp(Canvas& canvas, const Theme& theme) {
     canvas.setTextSize(1);
 
     static const HelpLine soundHelp[] = {
-        {"CTRL/OK", "Edit/Record"}, {"SPACE", "Audition"}, {"DEL", "Clear"},
+        {"CTRL/OK", "Select"}, {"SPACE", "Audition"}, {"DEL", "Clear"},
         {"I", "Import wav"}, {"R", "Rename"}, {"1-8", "Audition"},
     };
     static const HelpLine trimHelp[] = {
