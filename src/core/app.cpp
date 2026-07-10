@@ -3,6 +3,7 @@
 #include "platform/led.h"
 #include <cstdio>
 #include <cstring>
+#include <cstdlib>
 
 App* App::_instance = nullptr;
 
@@ -53,12 +54,23 @@ void App::onStep(uint8_t step) {
     // Reset trigger counter for jamming detection
     app->_stepTriggerCount = 0;
 
-    // Dancing on beat
-    uint8_t dancePhase = (step / 4) % 3;
+    // Pick dance style at start of playback
+    if (step == 0 && app->_danceStyle == 0xFF) app->_danceStyle = rand() % 3;
+
+    // Animate on beat
     if (step % 4 == 0) {
-        if (dancePhase == 0) app->_character.setState(CHAR_DANCE_R);
-        else if (dancePhase == 1) app->_character.setState(CHAR_DANCE_L);
-        else app->_character.setState(CHAR_BEAT);
+        app->_character.setState(CHAR_LISTENING);
+        if ((rand() & 31) == 0) {
+            app->_character.setState(CHAR_RUDE);
+        } else if (app->_danceStyle == 0) {
+            app->_character.setState((step / 4) % 2 == 0 ? CHAR_DANCE_R : CHAR_DANCE_L);
+        } else if (app->_danceStyle == 1) {
+            app->_character.setState(CHAR_BEAT);
+        } else {
+            app->_character.setState((step / 4) % 2 == 0 ? CHAR_DANCE_UP_L : CHAR_DANCE_UP_R);
+        }
+    } else if (app->_character.getState() == CHAR_IDLE) {
+        app->_character.setState(CHAR_LISTENING);
     }
 
     // LED
@@ -105,6 +117,7 @@ void App::tick() {
 
     if (_ledPlaying && !_sequencer.isPlaying() && !_lowBattery) {
         _ledPlaying = false;
+        _danceStyle = 0xFF;
         if (_settings.ledMode != LED_OFF) {
             uint8_t r, g, b;
             ThemeOps::getPresetRGB(_project.themeIndex, r, g, b);

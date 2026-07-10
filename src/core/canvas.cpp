@@ -119,8 +119,16 @@ static const ExtGlyph extGlyphs[] = {
     {0x266C, {0x62,0x72,0x3E,0x00,0x00}},
     // ノ U+30CE - katakana no (arm reaching)
     {0x30CE, {0x20,0x10,0x08,0x04,0x02}},
+    // ┏ U+250F - top-left heavy corner (arm up-left)
+    {0x250F, {0x00,0x00,0x1F,0x10,0x10}},
+    // ┛ U+251B - bottom-right heavy corner (leg down-right)
+    {0x251B, {0x04,0x04,0x7C,0x00,0x00}},
+    // ┗ U+2517 - bottom-left heavy corner (leg down-left)
+    {0x2517, {0x00,0x00,0x7C,0x04,0x04}},
+    // ┓ U+2513 - top-right heavy corner (arm up-right)
+    {0x2513, {0x10,0x10,0x1F,0x00,0x00}},
 };
-static const int EXT_GLYPH_COUNT = 8;
+static const int EXT_GLYPH_COUNT = 12;
 
 static const uint8_t* findExtGlyph(uint32_t cp) {
     for (int i = 0; i < EXT_GLYPH_COUNT; i++) {

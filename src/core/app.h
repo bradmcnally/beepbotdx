@@ -64,6 +64,7 @@ private:
     bool _lowBattery = false;
     bool _ledPlaying = false;
     uint8_t _stepTriggerCount = 0;
+    uint8_t _danceStyle = 0xFF;
 
     Project _project;
     Character _character;

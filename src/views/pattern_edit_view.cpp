@@ -46,8 +46,16 @@ void PatternEditView::update(InputEvent event) {
                 _sequencer.stop();
                 _character.setState(CHAR_FOCUSED);
             } else {
-                _sequencer.playPattern(_patternIndex);
-                _character.setState(CHAR_IDLE);
+                bool empty = true;
+                for (int i = 0; i < NUM_STEPS; i++) {
+                    if (_project.patterns[_patternIndex].steps[i]) { empty = false; break; }
+                }
+                if (empty) {
+                    _character.setState(CHAR_SHIFTY);
+                } else {
+                    _sequencer.playPattern(_patternIndex);
+                    _character.setState(CHAR_IDLE);
+                }
             }
             break;
         case INPUT_NUM1: handleNumber(0); break;

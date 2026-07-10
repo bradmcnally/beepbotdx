@@ -22,6 +22,11 @@ enum CharacterState {
     CHAR_CRYING,
     CHAR_WINK,
     CHAR_SUSPICIOUS,
+    CHAR_RUDE,
+    CHAR_LISTENING,
+    CHAR_DANCE_UP_L,
+    CHAR_DANCE_UP_R,
+    CHAR_SHIFTY,
 };
 
 class Character {
