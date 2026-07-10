@@ -24,4 +24,6 @@ private:
     uint8_t _cursor;
     bool _editRequested;
     uint8_t _lastSongPos;
+    uint8_t _flashSlot = 0xFF;
+    uint32_t _flashTime = 0;
 };

@@ -140,11 +140,12 @@ void App::handleGlobalInput(InputEvent& event) {
     // Help overlay consumes input when open
     if (_helpOpen && event != INPUT_NONE) {
         if (event == INPUT_UP) {
-            if (_helpScroll > 0) _helpScroll--;
+            if (_helpCursor > 0) _helpCursor--;
         } else if (event == INPUT_DOWN) {
-            _helpScroll++;
+            if (_helpCursor < _helpTotal - 1) _helpCursor++;
         } else {
             _helpOpen = false;
+            _helpCursor = 0;
             _helpScroll = 0;
         }
         event = INPUT_NONE;
@@ -165,6 +166,7 @@ void App::handleGlobalInput(InputEvent& event) {
     // H key opens help
     if (event == INPUT_CHAR && Input::getChar() == 'h'
         && _currentScreen != SCREEN_PROJECT
+        && _currentScreen != SCREEN_SETTINGS
         && !textInput) {
         _helpOpen = true;
         _helpScroll = 0;
@@ -529,31 +531,31 @@ void App::drawHelp(Canvas& canvas, const Theme& theme) {
     canvas.setTextSize(1);
 
     static const HelpLine soundHelp[] = {
-        {"OK/CTRL", "open slot"}, {"SPACE", "audition"}, {"DEL", "clear"},
-        {"I", "import wav"}, {"R", "rename"}, {"1-8", "audition"},
+        {"OK/CTRL", "Open slot"}, {"SPACE", "Audition"}, {"DEL", "Clear"},
+        {"I", "Import wav"}, {"R", "Rename"}, {"1-8", "Audition"},
     };
     static const HelpLine trimHelp[] = {
-        {"L/R", "adjust point"}, {"U/D", "switch start/end"}, {"SPACE", "audition"},
-        {"+/-", "volume"}, {"OK/CTRL", "apply"}, {"ESC", "cancel"},
+        {"L/R", "Adjust point"}, {"U/D", "Switch start/end"}, {"SPACE", "Audition"},
+        {"+/-", "Volume"}, {"OK/CTRL", "Apply"}, {"ESC", "Cancel"},
     };
     static const HelpLine patSelectHelp[] = {
-        {"OK/CTRL", "edit"}, {"SPACE", "audition"}, {"DEL", "clear"},
-        {"Fn+C", "copy"}, {"Fn+V", "paste"},
+        {"OK/CTRL", "Edit"}, {"SPACE", "Audition"}, {"DEL", "Clear"},
+        {"Fn C", "Copy"}, {"Fn V", "Paste"},
     };
     static const HelpLine patEditHelp[] = {
-        {"OK/CTRL", "toggle step"}, {"SPACE", "play/stop"}, {"ESC", "back"},
-        {"1-8", "audition"}, {"Fn+1-8", "live record"},
+        {"OK/CTRL", "Toggle step"}, {"SPACE", "Play/stop"}, {"ESC", "Back"},
+        {"1-8", "Audition"}, {"Fn 1-8", "Live record"},
     };
     static const HelpLine songHelp[] = {
-        {"OK/CTRL", "edit pattern"}, {"SPACE", "play song"}, {"DEL", "clear slot"},
-        {"[ ]", "cycle pattern"}, {"E", "export wav"},
+        {"OK/CTRL", "Edit pattern"}, {"SPACE", "Play song"}, {"DEL", "Clear slot"},
+        {"[/]", "Cycle pattern"}, {"E", "Export wav"},
     };
     static const HelpLine playHelp[] = {
-        {"SPACE", "play/stop"}, {"1-8", "audition"}, {"E", "export wav"},
+        {"SPACE", "Play/stop"}, {"1-8", "Audition"}, {"E", "Export wav"},
     };
     static const HelpLine globals[] = {
-        {"S", "save"}, {"O", "open"}, {"G", "settings"}, {"M", "led"},
-        {"+/-", "volume"}, {"B+/-", "bpm"}, {"Fn+/-", "bright"}, {"TAB", "navigate"},
+        {"S", "Save proj"}, {"O", "Open proj"}, {"G", "Settings"}, {"M", "Led Metronome"},
+        {"+/-", "Volume"}, {"B +/-", "BPM"}, {"Fn +/-", "Brightness"}, {"TAB", "Navigate"}, {"TAB ^/v ", "Menu"},
     };
 
     const HelpLine* lines = nullptr;
@@ -580,60 +582,74 @@ void App::drawHelp(Canvas& canvas, const Theme& theme) {
         default: return;
     }
 
-    int totalLines = lineCount + (showGlobals ? 1 + 8 : 0);
-    const int visibleLines = 12;
-    int maxScroll = totalLines > visibleLines ? totalLines - visibleLines : 0;
-    if (_helpScroll > maxScroll) _helpScroll = maxScroll;
-
-    int y = 10;
-
-    canvas.setTextColor(theme.accent);
-    canvas.setTextDatum(top_center);
-    canvas.drawString(screenTitle, SCREEN_WIDTH / 2, y);
-    y += 12;
-
-    int lineIdx = 0;
-
-    canvas.setTextDatum(top_left);
-    for (int i = 0; i < lineCount; i++) {
-        if (lineIdx >= _helpScroll && lineIdx < _helpScroll + visibleLines) {
-            canvas.setTextColor(theme.accent);
-            canvas.drawString(lines[i].key, 14, y);
-            canvas.setTextColor(TFT_WHITE);
-            canvas.drawString(lines[i].action, 60, y);
-            y += 9;
-        }
-        lineIdx++;
-    }
-
+    // Build flat item list
+    const HelpLine* allItems[24];
+    int allCount = 0;
+    int globalStart = -1;
+    for (int i = 0; i < lineCount; i++) allItems[allCount++] = &lines[i];
     if (showGlobals) {
-        if (lineIdx >= _helpScroll && lineIdx < _helpScroll + visibleLines) {
-            y += 3;
-            canvas.setTextColor(theme.dim);
-            canvas.setTextDatum(top_center);
-            canvas.drawString("-- global --", SCREEN_WIDTH / 2, y);
-            y += 10;
+        globalStart = allCount;
+        const int globalCount = sizeof(globals) / sizeof(globals[0]);
+        for (int i = 0; i < globalCount; i++) allItems[allCount++] = &globals[i];
+    }
+    _helpTotal = allCount;
+
+    const int startY = 28;
+    const int lineHeight = 11;
+    const int selectedLineHeight = 11;
+    const int groupGap = 8;
+    const int labelX = 14;
+    const int keyX = SCREEN_WIDTH - 14;
+
+    // Auto-scroll to keep cursor visible
+    if (_helpCursor < _helpScroll) _helpScroll = _helpCursor;
+    while (_helpScroll < _helpCursor) {
+        int y = startY;
+        for (int i = _helpScroll; i <= _helpCursor && i < allCount; i++) {
+            if (i == globalStart && i > _helpScroll) y += groupGap;
+            y += (i == _helpCursor) ? selectedLineHeight : lineHeight;
         }
-        lineIdx++;
-        canvas.setTextDatum(top_left);
-        for (int i = 0; i < 8; i++) {
-            if (lineIdx >= _helpScroll && lineIdx < _helpScroll + visibleLines) {
-                canvas.setTextColor(theme.accent);
-                canvas.drawString(globals[i].key, 14, y);
-                canvas.setTextColor(TFT_WHITE);
-                canvas.drawString(globals[i].action, 60, y);
-                y += 9;
-            }
-            lineIdx++;
-        }
+        if (y <= SCREEN_HEIGHT - 10) break;
+        _helpScroll++;
     }
 
-    if (maxScroll > 0) {
-        const int trackTop = 10;
-        const int trackH = SCREEN_HEIGHT - 20;
-        int thumbH = trackH * visibleLines / totalLines;
+    // Title
+    canvas.setTextColor(theme.accent);
+    canvas.setTextDatum(top_left);
+    canvas.drawString("HELP", 7, 7);
+
+    // Draw rows
+    int y = startY;
+    for (int i = _helpScroll; i < allCount; i++) {
+        if (i == globalStart && i > _helpScroll) y += groupGap;
+        if (y >= SCREEN_HEIGHT - 4) break;
+
+        bool selected = (i == _helpCursor);
+        int textY = y;
+
+        canvas.setTextSize(1);
+        uint16_t color = selected ? TFT_WHITE : theme.accent;
+
+        canvas.setTextColor(color);
+        canvas.setTextDatum(top_left);
+        if (selected) canvas.drawString(">", labelX - 8, textY);
+        canvas.drawString(allItems[i]->action, labelX, textY);
+
+        canvas.setTextColor(color);
+        canvas.setTextDatum(top_left);
+        canvas.drawString(allItems[i]->key, 140, textY);
+
+        y += selected ? selectedLineHeight : lineHeight;
+    }
+
+    canvas.setTextSize(1);
+
+    if (allCount > 0) {
+        const int trackTop = startY;
+        const int trackH = SCREEN_HEIGHT - startY - 10;
+        int thumbH = trackH / allCount;
         if (thumbH < 6) thumbH = 6;
-        int thumbY = trackTop + (trackH - thumbH) * _helpScroll / maxScroll;
+        int thumbY = trackTop + (trackH - thumbH) * _helpCursor / (allCount - 1);
         canvas.fillRect(SCREEN_WIDTH - 3, thumbY, 3, thumbH, theme.accent);
     }
 }

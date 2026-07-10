@@ -86,7 +86,9 @@ private:
 
     // Help overlay
     bool _helpOpen = false;
+    int _helpCursor = 0;
     int _helpScroll = 0;
+    int _helpTotal = 0;
 
     // Tab menu
     bool _tabMenuOpen = false;

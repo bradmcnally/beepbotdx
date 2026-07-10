@@ -417,8 +417,8 @@ void SoundView::draw(Canvas& canvas) {
                 // Cell background
                 uint16_t bgColor;
                 uint16_t textColor;
-                if (flashing) { bgColor = theme.dim; textColor = theme.textOnAccent; }
-                else if (selected) { bgColor = theme.accent; textColor = theme.textOnAccent; }
+                if (flashing) { bgColor = TFT_WHITE; textColor = TFT_BLACK; }
+                else if (selected) { bgColor = theme.accent; textColor = TFT_BLACK; }
                 else { bgColor = theme.dark; textColor = occupied ? theme.accent : theme.dim; }
                 canvas.fillRect(x, y, grid.cellW, grid.cellH, bgColor);
 
@@ -439,8 +439,18 @@ void SoundView::draw(Canvas& canvas) {
             }
 
             if (_confirmingDelete) {
+                uint16_t* buf = canvas.buffer();
+                int total = SCREEN_WIDTH * SCREEN_HEIGHT;
+                for (int p = 0; p < total; p++) {
+                    uint16_t c = buf[p];
+                    uint8_t r = (c >> 11) & 0x1F;
+                    uint8_t g = (c >> 5) & 0x3F;
+                    uint8_t b = c & 0x1F;
+                    buf[p] = ((r * 15 / 100) << 11) | ((g * 15 / 100) << 5) | (b * 15 / 100);
+                }
+
                 const int boxW = 150;
-                const int boxH = 40;
+                const int boxH = 60;
                 const int boxX = (SCREEN_WIDTH - boxW) / 2;
                 const int boxY = (SCREEN_HEIGHT - boxH) / 2;
                 canvas.fillRect(boxX, boxY, boxW, boxH, TFT_BLACK);
@@ -448,10 +458,17 @@ void SoundView::draw(Canvas& canvas) {
 
                 canvas.setTextColor(TFT_WHITE);
                 canvas.setTextDatum(top_center);
-                canvas.drawString("Delete sound?", boxX + boxW / 2, boxY + 6);
+                SoundSlot& slot = _project.sounds[_cursor];
+                char msg[32];
+                if (slot.name[0]) {
+                    snprintf(msg, sizeof(msg), "DELETE \"%s\"?", slot.name);
+                } else {
+                    snprintf(msg, sizeof(msg), "DELETE SOUND %d?", _cursor + 1);
+                }
+                canvas.drawString(msg, boxX + boxW / 2, boxY + 16);
 
                 canvas.setTextColor(theme.accent);
-                canvas.drawString("OK:yes  ESC:no", boxX + boxW / 2, boxY + 22);
+                canvas.drawString("OK:YES  ESC:NO", boxX + boxW / 2, boxY + 36);
             }
             break;
         }
@@ -477,7 +494,9 @@ void SoundView::draw(Canvas& canvas) {
             canvas.drawString("to record", leftX + boxW / 2, textY + 10);
 
             canvas.setTextColor(theme.accent);
-            canvas.drawString("[i] import", rightX + boxW / 2, textY);
+            canvas.drawString("import", rightX + boxW / 2, textY);
+            int iX = rightX + boxW / 2 - (6 * 6) / 2;
+            canvas.fillRect(iX, textY + 8, 5, 1, theme.accent);
             canvas.drawString("from SD card", rightX + boxW / 2, textY + 10);
             break;
         }
@@ -662,11 +681,8 @@ void SoundView::draw(Canvas& canvas) {
             for (int i = scrollOffset; i < _wavFileCount && (i - scrollOffset) < visibleItems; i++) {
                 int y = listTop + (i - scrollOffset) * itemH;
 
-                if (i == _fileCursor) {
-                    canvas.setTextColor(theme.accent);
-                    canvas.drawString(">", 4, y);
-                }
-                canvas.setTextColor(i == _fileCursor ? theme.accent : TFT_WHITE);
+                canvas.setTextColor(i == _fileCursor ? TFT_WHITE : theme.accent);
+                if (i == _fileCursor) canvas.drawString(">", 4, y);
                 canvas.drawString(_wavFiles[i], 12, y);
             }
 
@@ -761,18 +777,17 @@ void SoundView::drawWaveform(Canvas& canvas, int x, int y, int w, int h) {
     }
 
     // Draw start marker (dotted line, 36px tall, 2x2 dots)
-    const uint16_t gray50 = 0x7BEF;
     int startPx = x + (int)((float)_trimStart / slot.length * w);
     int markerH = 36;
     int markerY = midY - markerH / 2 + 1;
-    uint16_t startColor = _trimMovingEnd ? gray50 : TFT_WHITE;
+    uint16_t startColor = _trimMovingEnd ? theme.dim : TFT_WHITE;
     for (int dy = 0; dy < markerH; dy += 4) {
         canvas.fillRect(startPx, markerY + dy, 2, 2, startColor);
     }
 
     // Draw end marker (dotted line, 36px tall, 2x2 dots)
     int endPx = x + (int)((float)_trimEnd / slot.length * w);
-    uint16_t endColor = _trimMovingEnd ? TFT_WHITE : gray50;
+    uint16_t endColor = _trimMovingEnd ? TFT_WHITE : theme.dim;
     for (int dy = 0; dy < markerH; dy += 4) {
         canvas.fillRect(endPx, markerY + dy, 2, 2, endColor);
     }

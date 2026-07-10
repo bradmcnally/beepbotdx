@@ -4,8 +4,9 @@
 
 struct Theme {
     uint16_t accent;        // full brightness accent
-    uint16_t dim;           // secondary text, beat markers
+    uint16_t dim;           // secondary text, pressed state
     uint16_t dark;          // cell backgrounds
+    uint16_t measure;       // beat marker columns
     uint16_t highlight;     // bright variant for status messages
     uint16_t bg;            // screen background
     uint16_t textOnAccent;  // black or white depending on accent luminance

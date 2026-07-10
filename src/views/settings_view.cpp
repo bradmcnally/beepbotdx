@@ -2,6 +2,7 @@
 #include "core/theme.h"
 #include "platform/led.h"
 #include "config.h"
+#include <cstdio>
 
 GlobalSettings* GlobalSettings::instance = nullptr;
 
@@ -67,7 +68,7 @@ void SettingsView::draw(Canvas& canvas) {
 
     const int itemH = 16;
     const int startY = 24;
-    const int labelX = 20;
+    const int labelX = 7;
     const int valueX = 140;
 
     const char* labels[] = {"AUTO-SAVE", "LED MODE", "WARNINGS", "BOOT"};
@@ -82,19 +83,19 @@ void SettingsView::draw(Canvas& canvas) {
     for (uint8_t i = 0; i < NUM_ITEMS; i++) {
         int y = startY + i * itemH;
 
-        if (i == _cursor) {
-            canvas.setTextColor(TFT_WHITE);
-            canvas.setTextDatum(top_left);
-            canvas.drawString(">", labelX - 10, y);
-        }
-
         canvas.setTextColor(i == _cursor ? TFT_WHITE : theme.accent);
         canvas.setTextDatum(top_left);
         canvas.drawString(labels[i], labelX, y);
 
-        canvas.setTextColor(i == _cursor ? theme.accent : theme.dim);
+        canvas.setTextColor(i == _cursor ? TFT_WHITE : theme.dim);
         canvas.setTextDatum(top_left);
-        canvas.drawString(values[i], valueX, y);
+        if (i == _cursor) {
+            char buf[20];
+            snprintf(buf, sizeof(buf), "< %s >", values[i]);
+            canvas.drawString(buf, valueX - 12, y);
+        } else {
+            canvas.drawString(values[i], valueX, y);
+        }
     }
 }
 

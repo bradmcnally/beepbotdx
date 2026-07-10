@@ -52,15 +52,33 @@ static bool onScreenshot() {
 #endif
 }
 
-static void showBootScreen() {
+static void showBootScreen(uint16_t accentColor) {
     Canvas& canvas = Display::canvas();
     Display::beginFrame();
 
-    // Render boot image from palette-indexed data
+    // Render boot image centered, replacing palette green with project accent
+    uint16_t palette[BOOT_PALETTE_COUNT];
+    for (int i = 0; i < BOOT_PALETTE_COUNT; i++)
+        palette[i] = pgm_read_word(&BOOT_PALETTE[i]);
+    if (BOOT_PALETTE_COUNT > 1)
+        palette[1] = accentColor;
+
+    uint16_t bg = palette[0];
     uint16_t* buf = canvas.buffer();
-    for (int i = 0; i < SCREEN_WIDTH * SCREEN_HEIGHT; i++) {
-        uint8_t idx = pgm_read_byte(&BOOT_IMAGE[i]);
-        buf[i] = pgm_read_word(&BOOT_PALETTE[idx % BOOT_PALETTE_COUNT]);
+    int ox = (SCREEN_WIDTH - BOOT_IMAGE_W) / 2;
+    int oy = (SCREEN_HEIGHT - BOOT_IMAGE_H) / 2;
+
+    for (int y = 0; y < SCREEN_HEIGHT; y++) {
+        for (int x = 0; x < SCREEN_WIDTH; x++) {
+            int sx = x - ox;
+            int sy = y - oy;
+            if (sx >= 0 && sx < BOOT_IMAGE_W && sy >= 0 && sy < BOOT_IMAGE_H) {
+                uint8_t idx = pgm_read_byte(&BOOT_IMAGE[sy * BOOT_IMAGE_W + sx]);
+                buf[y * SCREEN_WIDTH + x] = palette[idx % BOOT_PALETTE_COUNT];
+            } else {
+                buf[y * SCREEN_WIDTH + x] = bg;
+            }
+        }
     }
 
     // Version (lower-left)
@@ -74,10 +92,12 @@ static void showBootScreen() {
     canvas.setTextDatum(top_center);
     canvas.drawString("beepbot", SCREEN_WIDTH / 2, SCREEN_HEIGHT - 12);
 
-    // "Help" (lower-right)
+    // "HELP" (lower-right, H underlined)
     canvas.setTextColor(0x7BEF);
     canvas.setTextDatum(top_right);
-    canvas.drawString("Help", SCREEN_WIDTH - 4, SCREEN_HEIGHT - 12);
+    canvas.drawString("HELP", SCREEN_WIDTH - 4, SCREEN_HEIGHT - 12);
+    int hX = SCREEN_WIDTH - 4 - (4 * 6);
+    canvas.fillRect(hX, SCREEN_HEIGHT - 12 + 8, 5, 1, 0x7BEF);
 
     Display::endFrame();
 
@@ -115,7 +135,9 @@ void setup() {
     prefs.end();
     Display::setBrightness((displayBrightness * 255) / 100);
 
-    showBootScreen();
+    uint8_t themeIdx = Storage::loadProjectTheme(lastSlot);
+    Theme bootTheme = ThemeOps::getPreset(themeIdx);
+    showBootScreen(bootTheme.accent);
 
     AppCallbacks callbacks = {};
     callbacks.saveSlot = onSaveSlot;

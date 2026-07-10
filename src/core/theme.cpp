@@ -26,7 +26,7 @@ Theme ThemeOps::getPreset(uint8_t index) {
 
     Theme t;
     t.accent = rgb565(p.r, p.g, p.b);
-    t.dim = rgb565(p.r * 36 / 100, p.g * 36 / 100, p.b * 36 / 100);
+    t.dim = rgb565(p.r * 48 / 100, p.g * 48 / 100, p.b * 48 / 100);
     t.dark = rgb565(p.r * 8 / 100, p.g * 8 / 100, p.b * 8 / 100);
     t.highlight = rgb565(
         p.r + (255 - p.r) / 3,
@@ -34,6 +34,7 @@ Theme ThemeOps::getPreset(uint8_t index) {
         p.b + (255 - p.b) / 3
     );
     t.bg = 0x0000;
+    t.measure = rgb565(p.r * 25 / 100, p.g * 25 / 100, p.b * 25 / 100);
     int luma = (p.r * 299 + p.g * 587 + p.b * 114) / 1000;
     t.textOnAccent = luma > 150 ? 0x0000 : 0xFFFF;
     return t;

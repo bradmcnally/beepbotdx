@@ -73,10 +73,14 @@ void SongView::update(InputEvent event) {
             break;
         case INPUT_ENTER:
             if (_project.song[_cursor] != 0xFF) {
+                _flashSlot = _cursor;
+                _flashTime = millis();
                 _editRequested = true;
             }
             break;
         case INPUT_SPACE:
+            _flashSlot = _cursor;
+            _flashTime = millis();
             if (_sequencer.isPlaying()) {
                 _sequencer.stop();
                 _character.setState(CHAR_IDLE);
@@ -113,10 +117,12 @@ void SongView::draw(Canvas& canvas) {
 
         bool selected = (i == _cursor);
         bool empty = (_project.song[i] == 0xFF);
+        bool flashing = (_flashSlot == i && (millis() - _flashTime) < 150);
 
         uint16_t bgColor;
         uint16_t textColor;
-        if (selected) { bgColor = theme.accent; textColor = theme.textOnAccent; }
+        if (flashing) { bgColor = TFT_WHITE; textColor = TFT_BLACK; }
+        else if (selected) { bgColor = theme.accent; textColor = TFT_BLACK; }
         else if (!empty) { bgColor = theme.dark; textColor = theme.accent; }
         else { bgColor = theme.dark; textColor = theme.dim; }
         canvas.fillRect(x, y, grid.cellW, grid.cellH, bgColor);
@@ -129,7 +135,7 @@ void SongView::draw(Canvas& canvas) {
             canvas.setTextDatum(top_left);
             char label[5];
             snprintf(label, sizeof(label), "%02d", patIdx + 1);
-            canvas.drawString(label, x + 4, y + 2);
+            canvas.drawString(label, x + 4, y + 4);
 
             const int px = 2;
             int miniW = NUM_STEPS * px;

@@ -141,8 +141,8 @@ void PatternSelectView::draw(Canvas& canvas) {
         // Cell background
         uint16_t bgColor;
         uint16_t textColor;
-        if (flashing) { bgColor = theme.dim; textColor = theme.textOnAccent; }
-        else if (selected) { bgColor = theme.accent; textColor = theme.textOnAccent; }
+        if (flashing) { bgColor = TFT_WHITE; textColor = TFT_BLACK; }
+        else if (selected) { bgColor = theme.accent; textColor = TFT_BLACK; }
         else { bgColor = theme.dark; textColor = hasSteps ? theme.accent : theme.dim; }
         canvas.fillRect(x, y, cellW, cellH, bgColor);
         canvas.setTextColor(textColor);
@@ -166,7 +166,7 @@ void PatternSelectView::draw(Canvas& canvas) {
             for (uint8_t step = 0; step < NUM_STEPS; step++) {
                 for (uint8_t snd = 0; snd < NUM_SOUNDS; snd++) {
                     if (step == playStep) {
-                        uint16_t c = (pat.steps[step] & (1 << snd)) ? TFT_WHITE : (selected ? theme.textOnAccent : theme.dim);
+                        uint16_t c = (pat.steps[step] & (1 << snd)) ? TFT_WHITE : (selected ? TFT_BLACK : theme.dim);
                         canvas.fillRect(mx + step * px, my + snd * px, px, px, c);
                     } else if (pat.steps[step] & (1 << snd)) {
                         canvas.fillRect(mx + step * px, my + snd * px, px, px, textColor);
@@ -177,8 +177,18 @@ void PatternSelectView::draw(Canvas& canvas) {
     }
 
     if (_confirmingDelete) {
+        uint16_t* buf = canvas.buffer();
+        int total = SCREEN_WIDTH * SCREEN_HEIGHT;
+        for (int p = 0; p < total; p++) {
+            uint16_t c = buf[p];
+            uint8_t r = (c >> 11) & 0x1F;
+            uint8_t g = (c >> 5) & 0x3F;
+            uint8_t b = c & 0x1F;
+            buf[p] = ((r * 15 / 100) << 11) | ((g * 15 / 100) << 5) | (b * 15 / 100);
+        }
+
         const int boxW = 150;
-        const int boxH = 40;
+        const int boxH = 60;
         const int boxX = (SCREEN_WIDTH - boxW) / 2;
         const int boxY = (SCREEN_HEIGHT - boxH) / 2;
         canvas.fillRect(boxX, boxY, boxW, boxH, TFT_BLACK);
@@ -186,10 +196,12 @@ void PatternSelectView::draw(Canvas& canvas) {
 
         canvas.setTextColor(TFT_WHITE);
         canvas.setTextDatum(top_center);
-        canvas.drawString("Clear pattern?", boxX + boxW / 2, boxY + 6);
+        char msg[24];
+        snprintf(msg, sizeof(msg), "CLEAR PATTERN %d?", _cursor + 1);
+        canvas.drawString(msg, boxX + boxW / 2, boxY + 16);
 
         canvas.setTextColor(theme.accent);
-        canvas.drawString("OK:yes  ESC:no", boxX + boxW / 2, boxY + 22);
+        canvas.drawString("OK:YES  ESC:NO", boxX + boxW / 2, boxY + 36);
     }
 }
 

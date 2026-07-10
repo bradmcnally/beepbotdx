@@ -178,6 +178,7 @@ void ProjectView::update(InputEvent event) {
                 _project.themeIndex = (_project.themeIndex + 1) % ThemeOps::NUM_PRESETS;
                 _slotTheme[_currentSlot] = _project.themeIndex;
                 _project.dirty = true;
+                Storage::saveProjectTheme(_currentSlot, _project.themeIndex);
                 { uint8_t r, g, b; ThemeOps::getPresetRGB(_project.themeIndex, r, g, b); LED::setColor(r, g, b); }
             } else if (_slotExists[_cursor]) {
                 _slotTheme[_cursor] = (_slotTheme[_cursor] + 1) % ThemeOps::NUM_PRESETS;
@@ -189,6 +190,7 @@ void ProjectView::update(InputEvent event) {
                 _project.themeIndex = (_project.themeIndex + ThemeOps::NUM_PRESETS - 1) % ThemeOps::NUM_PRESETS;
                 _slotTheme[_currentSlot] = _project.themeIndex;
                 _project.dirty = true;
+                Storage::saveProjectTheme(_currentSlot, _project.themeIndex);
                 { uint8_t r, g, b; ThemeOps::getPresetRGB(_project.themeIndex, r, g, b); LED::setColor(r, g, b); }
             } else if (_slotExists[_cursor]) {
                 _slotTheme[_cursor] = (_slotTheme[_cursor] + ThemeOps::NUM_PRESETS - 1) % ThemeOps::NUM_PRESETS;
@@ -316,7 +318,7 @@ void ProjectView::draw(Canvas& canvas) {
             if (_slotExists[i]) {
                 Theme slotTheme = ThemeOps::getPreset(_slotTheme[i]);
                 bgColor = slotTheme.accent;
-                textColor = slotTheme.textOnAccent;
+                textColor = TFT_BLACK;
             } else {
                 bgColor = TFT_WHITE;
                 textColor = TFT_BLACK;
@@ -366,7 +368,7 @@ void ProjectView::draw(Canvas& canvas) {
         }
 
         const int boxW = 180;
-        const int boxH = 68;
+        const int boxH = 76;
         const int boxX = (SCREEN_WIDTH - boxW) / 2;
         const int boxY = (SCREEN_HEIGHT - boxH) / 2;
         canvas.fillRect(boxX, boxY, boxW, boxH, TFT_BLACK);
@@ -374,16 +376,26 @@ void ProjectView::draw(Canvas& canvas) {
 
         canvas.setTextColor(TFT_WHITE);
         canvas.setTextDatum(top_center);
-        canvas.drawString("You have unsaved changes", boxX + boxW / 2, boxY + 12);
+        canvas.drawString("UNSAVED CHANGES", boxX + boxW / 2, boxY + 16);
 
         canvas.setTextColor(theme.accent);
-        canvas.drawString("OK:save  Esc:cancel", boxX + boxW / 2, boxY + 34);
-        canvas.drawString("DEL:discard", boxX + boxW / 2, boxY + 50);
+        canvas.drawString("OK:SAVE  ESC:CANCEL", boxX + boxW / 2, boxY + 38);
+        canvas.drawString("DEL:DISCARD", boxX + boxW / 2, boxY + 54);
     }
 
     if (_deleting) {
+        uint16_t* buf = canvas.buffer();
+        int total = SCREEN_WIDTH * SCREEN_HEIGHT;
+        for (int p = 0; p < total; p++) {
+            uint16_t c = buf[p];
+            uint8_t r = (c >> 11) & 0x1F;
+            uint8_t g = (c >> 5) & 0x3F;
+            uint8_t b = c & 0x1F;
+            buf[p] = ((r * 15 / 100) << 11) | ((g * 15 / 100) << 5) | (b * 15 / 100);
+        }
+
         const int boxW = 150;
-        const int boxH = 40;
+        const int boxH = 60;
         const int boxX = (SCREEN_WIDTH - boxW) / 2;
         const int boxY = (SCREEN_HEIGHT - boxH) / 2;
         canvas.fillRect(boxX, boxY, boxW, boxH, TFT_BLACK);
@@ -392,11 +404,11 @@ void ProjectView::draw(Canvas& canvas) {
         canvas.setTextColor(TFT_WHITE);
         canvas.setTextDatum(top_center);
         char msg[24];
-        snprintf(msg, sizeof(msg), "Delete project %d?", _cursor + 1);
-        canvas.drawString(msg, boxX + boxW / 2, boxY + 6);
+        snprintf(msg, sizeof(msg), "DELETE PROJECT %d?", _cursor + 1);
+        canvas.drawString(msg, boxX + boxW / 2, boxY + 16);
 
         canvas.setTextColor(theme.accent);
-        canvas.drawString("OK:yes  ESC:no", boxX + boxW / 2, boxY + 22);
+        canvas.drawString("OK:YES  ESC:NO", boxX + boxW / 2, boxY + 36);
     }
 
 
