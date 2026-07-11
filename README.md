@@ -136,6 +136,8 @@ Place WAV files for import in `/beepbotdx/samples/` on the SD card. Files should
 - Per-slot sound parameters: pitch, bitcrush, low pass filter, high pass filter
 - More visualizations
 
+![Zero](assets/beepbotdx_zero.png)
+
 ## Architecture
 
 ```
