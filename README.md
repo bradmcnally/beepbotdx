@@ -7,7 +7,6 @@ Record sounds with the built-in mic, import WAV files from SD, build patterns, a
 ![Sound Slots](assets/sound_slots.png)
 ![Trim](assets/trim.png)
 ![Sequencer](assets/sequencer.png)
-![Play](assets/play.png)
 
 ## Features
 
