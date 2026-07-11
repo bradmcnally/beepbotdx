@@ -148,19 +148,25 @@ void App::handleGlobalInput(InputEvent& event) {
                   || (_currentScreen == SCREEN_PROJECT && _projectView.inRename());
     Input::setTextMode(textInput);
 
-    // Help overlay consumes input when open
+    // Help overlay consumes input when open (except screenshot)
     if (_helpOpen && event != INPUT_NONE) {
-        if (event == INPUT_UP) {
+        if (event == INPUT_CHAR && Input::getChar() == 'y') {
+            // fall through to screenshot handler
+        } else if (event == INPUT_UP) {
             if (_helpCursor > 0) _helpCursor--;
+            event = INPUT_NONE;
+            return;
         } else if (event == INPUT_DOWN) {
             if (_helpCursor < _helpTotal - 1) _helpCursor++;
+            event = INPUT_NONE;
+            return;
         } else {
             _helpOpen = false;
             _helpCursor = 0;
             _helpScroll = 0;
+            event = INPUT_NONE;
+            return;
         }
-        event = INPUT_NONE;
-        return;
     }
 
     // During text input, view owns all input

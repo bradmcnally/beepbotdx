@@ -1,6 +1,6 @@
 # beepbot dx
 
-A tiny handheld sampler and sequencer for M5Stack Cardputer/ADV/Zero.
+A tiny sampler and sequencer for M5Stack Cardputer/ADV/Zero.
 
 Record sounds with the built-in mic, import WAV files from SD, build patterns, arrange songs, perform, and export.
 
@@ -13,7 +13,7 @@ Record sounds with the built-in mic, import WAV files from SD, build patterns, a
 
 - **8 projects** with color themes and renameable slots
 - **8 sound slots** — record hands-free, push-to-record, or import WAV from SD (16kHz mono, 2s max, trimmable)
-- **16-step sequencer** — 16 patterns, 8 tracks, 8-voice polyphony, copy/paste
+- **16-step sequencer** — 16 patterns, 8 tracks, 8-voice polyphony, copy/paste patterns
 - **Song mode** — chain up to 16 patterns
 - **Live play** — trigger sounds and patterns with playback visualization
 - **60-240 BPM** per-project tempo with LED sync (StampS3A)
@@ -22,10 +22,6 @@ Record sounds with the built-in mic, import WAV files from SD, build patterns, a
 - **Settings** — auto-save, LED mode, confirm delete, boot to project/list
 
 ## Controls
-
-Navigation uses a tab menu (hold TAB + arrows or tap to cycle).
-
-![Menu](assets/menu.png)
 
 | Key | Action |
 |-----|--------|
@@ -43,12 +39,23 @@ Navigation uses a tab menu (hold TAB + arrows or tap to cycle).
 | CTRL/OK | Select/confirm |
 | 1-8 | Trigger sounds |
 
+Navigation uses a tab menu (hold TAB + arrows or tap to cycle).
+
+![Menu](assets/menu.png)
+
 Press **H** on any screen for context-sensitive keyboard shortcuts.
+
+![Help](assets/help.png)
+
+Press **G** for settings.
+
+![Help](assets/settings.png)
 
 ### Sound
 ![Sounds](assets/sounds.png)
 ![Slot](assets/slot.png)
 ![Recording](assets/recording.png)
+![Import](assets/import.png)
 | Key | Action |
 |-----|--------|
 | CTRL/OK | Edit/Record |
@@ -112,6 +119,11 @@ Press **H** on any screen for context-sensitive keyboard shortcuts.
 | 1-8 | Audition |
 | E | Export WAV |
 
+## Known Issues
+
+- Brightness adjustment (N+/-) does not work
+- Memory is limited — trim recordings or clear unused slots to free space for new recordings
+
 ## Planned Features
 
 - Swing
@@ -169,8 +181,12 @@ Requires SDL2 and SDL2_image.
 # macOS
 brew install sdl2 sdl2_image
 
-# Build
+# Build (Cardputer / ADV, 240x135)
 cmake -B build
+cmake --build build
+
+# Build (Zero, 128x128)
+cmake -B build -DSCREEN_W=128 -DSCREEN_H=128
 cmake --build build
 
 # Run
