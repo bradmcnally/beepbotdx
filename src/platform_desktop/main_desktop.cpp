@@ -9,7 +9,7 @@
 #include "platform/memory.h"
 #include "boot_image.h"
 
-#define FIRMWARE_VERSION "v1.0.0"
+#define FIRMWARE_VERSION "v0.5.0"
 
 static App app;
 
