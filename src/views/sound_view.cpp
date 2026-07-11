@@ -630,7 +630,11 @@ void SoundView::drawTrim(Canvas& canvas, const Theme& theme) {
 
     canvas.setTextColor(theme.accent);
     canvas.setTextDatum(top_left);
-    canvas.drawString("TRIM", hdrLeft + 4, infoY);
+    if (slot.name[0]) {
+        canvas.drawString(slot.name, hdrLeft + 4, infoY);
+    } else {
+        canvas.drawString("TRIM", hdrLeft + 4, infoY);
+    }
 
     char durStr[10];
     snprintf(durStr, sizeof(durStr), "%.2fs", durSec);

@@ -521,8 +521,8 @@ void App::drawHelp(Canvas& canvas, const Theme& theme) {
     canvas.setTextSize(1);
 
     static const HelpLine soundHelp[] = {
-        {"CTRL/OK", "Select"}, {"SPACE", "Audition"}, {"DEL", "Clear"},
-        {"I", "Import wav"}, {"R", "Rename"}, {"1-8", "Audition"},
+        {"CTRL/OK", "Select"}, {"G0", "Hold to record"}, {"SPACE", "Audition"},
+        {"DEL", "Clear"}, {"I", "Import wav"}, {"R", "Rename"}, {"1-8", "Audition"},
     };
     static const HelpLine trimHelp[] = {
         {"L/R", "Adjust point"}, {"U/D", "Switch start/end"}, {"SPACE", "Audition"},
