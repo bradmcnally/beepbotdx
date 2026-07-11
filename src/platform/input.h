@@ -35,6 +35,11 @@ bool isBHeld();
 bool isNHeld();
 bool isFnHeld();
 bool isTabHeld();
+void setTextMode(bool enabled);
+bool isTextMode();
+bool isRecordPressed();
+bool wasRecordPressed();
+bool wasRecordReleased();
 bool shouldQuit();
 
 }

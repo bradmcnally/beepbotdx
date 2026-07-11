@@ -146,6 +146,7 @@ void App::tick() {
 void App::handleGlobalInput(InputEvent& event) {
     bool textInput = (_currentScreen == SCREEN_SOUND && _soundView.inRename())
                   || (_currentScreen == SCREEN_PROJECT && _projectView.inRename());
+    Input::setTextMode(textInput);
 
     // Help overlay consumes input when open
     if (_helpOpen && event != INPUT_NONE) {
@@ -162,9 +163,11 @@ void App::handleGlobalInput(InputEvent& event) {
         return;
     }
 
+    // During text input, view owns all input
+    if (textInput) return;
+
     // Y key takes screenshot
-    if (event == INPUT_CHAR && Input::getChar() == 'y'
-        && !textInput) {
+    if (event == INPUT_CHAR && Input::getChar() == 'y') {
         if (_callbacks.onScreenshot && _callbacks.onScreenshot()) {
             _character.setState(CHAR_SUCCESS);
             _character.say("snap!");
@@ -176,8 +179,7 @@ void App::handleGlobalInput(InputEvent& event) {
     // H key opens help
     if (event == INPUT_CHAR && Input::getChar() == 'h'
         && _currentScreen != SCREEN_PROJECT
-        && _currentScreen != SCREEN_SETTINGS
-        && !textInput) {
+        && _currentScreen != SCREEN_SETTINGS) {
         _helpOpen = true;
         _helpScroll = 0;
         event = INPUT_NONE;
@@ -186,8 +188,7 @@ void App::handleGlobalInput(InputEvent& event) {
 
     // F key flips table
     if (event == INPUT_CHAR && Input::getChar() == 'f'
-        && _currentScreen != SCREEN_PROJECT
-        && !textInput) {
+        && _currentScreen != SCREEN_PROJECT) {
         _character.setState(CHAR_FLIP);
         event = INPUT_NONE;
         return;
@@ -195,8 +196,7 @@ void App::handleGlobalInput(InputEvent& event) {
 
     // S key saves project
     if (event == INPUT_CHAR && Input::getChar() == 's'
-        && _currentScreen != SCREEN_PROJECT
-        && !textInput) {
+        && _currentScreen != SCREEN_PROJECT) {
         _character.setState(CHAR_SAVING);
         _character.say("saving...");
         if (Storage::saveProject(_project, _currentProjectSlot)) {
@@ -215,8 +215,7 @@ void App::handleGlobalInput(InputEvent& event) {
     // O key opens project picker
     if (event == INPUT_CHAR && Input::getChar() == 'o'
         && _currentScreen != SCREEN_PROJECT
-        && _currentScreen != SCREEN_SETTINGS
-        && !textInput) {
+        && _currentScreen != SCREEN_SETTINGS) {
         _screenBeforeProject = _currentScreen;
         switchScreen(SCREEN_PROJECT);
         event = INPUT_NONE;
@@ -226,8 +225,7 @@ void App::handleGlobalInput(InputEvent& event) {
     // G key opens settings
     if (event == INPUT_CHAR && Input::getChar() == 'g'
         && _currentScreen != SCREEN_PROJECT
-        && _currentScreen != SCREEN_SETTINGS
-        && !textInput) {
+        && _currentScreen != SCREEN_SETTINGS) {
         _screenBeforeSettings = _currentScreen;
         switchScreen(SCREEN_SETTINGS);
         event = INPUT_NONE;
@@ -236,8 +234,7 @@ void App::handleGlobalInput(InputEvent& event) {
 
     // M key cycles LED mode
     if (event == INPUT_CHAR && Input::getChar() == 'm'
-        && _currentScreen != SCREEN_SETTINGS
-        && !textInput) {
+        && _currentScreen != SCREEN_SETTINGS) {
         _settings.ledMode = (LedMode)((_settings.ledMode + 1) % 3);
         const char* names[] = {"led on", "led metro", "led off"};
         _character.say(names[_settings.ledMode]);
@@ -255,8 +252,7 @@ void App::handleGlobalInput(InputEvent& event) {
 
     // E key exports song to WAV
     if (event == INPUT_CHAR && Input::getChar() == 'e'
-        && (_currentScreen == SCREEN_SONG || _currentScreen == SCREEN_PLAY)
-        && !textInput) {
+        && (_currentScreen == SCREEN_SONG || _currentScreen == SCREEN_PLAY)) {
         _character.setState(CHAR_SAVING);
         _character.say("rendering...");
         char path[64];
@@ -277,8 +273,7 @@ void App::handleGlobalInput(InputEvent& event) {
     }
 
     // N+plus/minus adjusts brightness
-    if ((event == INPUT_PLUS || event == INPUT_MINUS) && Input::isNHeld()
-        && !textInput) {
+    if ((event == INPUT_PLUS || event == INPUT_MINUS) && Input::isNHeld()) {
         if (event == INPUT_PLUS) {
             _brightness = _brightness <= 90 ? _brightness + 10 : 100;
         } else {
@@ -292,10 +287,9 @@ void App::handleGlobalInput(InputEvent& event) {
         return;
     }
 
-    // +/- volume or B+/- BPM (not on project screen, not in trim/rename)
+    // +/- volume or B+/- BPM (not on project screen, not in trim)
     if ((event == INPUT_PLUS || event == INPUT_MINUS) && _currentScreen != SCREEN_PROJECT
-        && !(_currentScreen == SCREEN_SOUND && _soundView.inTrim())
-        && !textInput) {
+        && !(_currentScreen == SCREEN_SOUND && _soundView.inTrim())) {
         if (Input::isBHeld()) {
             if (event == INPUT_PLUS && _project.bpm < MAX_BPM) { _project.bpm++; _project.dirty = true; }
             if (event == INPUT_MINUS && _project.bpm > MIN_BPM) { _project.bpm--; _project.dirty = true; }
@@ -322,7 +316,7 @@ void App::handleGlobalInput(InputEvent& event) {
 
     // TAB menu
     if (event == INPUT_TAB && !_tabMenuOpen && _currentScreen != SCREEN_PROJECT
-        && _currentScreen != SCREEN_SETTINGS && !textInput) {
+        && _currentScreen != SCREEN_SETTINGS) {
         _tabMenuOpen = true;
         _tabMenuVisible = false;
         _tabMenuMoved = false;

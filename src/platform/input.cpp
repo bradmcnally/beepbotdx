@@ -6,6 +6,16 @@ static const char KEY_DOWN  = '.';
 static const char KEY_LEFT  = ',';
 static const char KEY_RIGHT = '/';
 
+#ifdef CARDPUTER_ZERO
+// Cardputer Zero arrow keys (D=up, Z=left, X=down, C=right)
+static const char ZERO_UP    = 'd';
+static const char ZERO_DOWN  = 'x';
+static const char ZERO_LEFT  = 'z';
+static const char ZERO_RIGHT = 'c';
+#endif
+
+static bool textMode = false;
+
 static char lastChar = 0;
 
 static unsigned long lastKeyTime = 0;
@@ -15,16 +25,28 @@ static bool keyRepeating = false;
 static char lastArrowKey = 0;
 
 static bool isArrowKey(char key) {
-    return key == KEY_UP || key == KEY_DOWN || key == KEY_LEFT || key == KEY_RIGHT;
+    if (key == KEY_UP || key == KEY_DOWN || key == KEY_LEFT || key == KEY_RIGHT)
+        return true;
+#ifdef CARDPUTER_ZERO
+    if (!textMode && (key == ZERO_UP || key == ZERO_DOWN || key == ZERO_LEFT || key == ZERO_RIGHT))
+        return true;
+#endif
+    return false;
 }
 
 static InputEvent arrowToEvent(char key) {
     switch (key) {
-        case KEY_UP:    return INPUT_UP;
-        case KEY_DOWN:  return INPUT_DOWN;
-        case KEY_LEFT:  return INPUT_LEFT;
-        case KEY_RIGHT: return INPUT_RIGHT;
-        default:        return INPUT_NONE;
+        case KEY_UP:        return INPUT_UP;
+        case KEY_DOWN:      return INPUT_DOWN;
+        case KEY_LEFT:      return INPUT_LEFT;
+        case KEY_RIGHT:     return INPUT_RIGHT;
+#ifdef CARDPUTER_ZERO
+        case ZERO_UP:    return INPUT_UP;
+        case ZERO_DOWN:  return INPUT_DOWN;
+        case ZERO_LEFT:  return INPUT_LEFT;
+        case ZERO_RIGHT: return INPUT_RIGHT;
+#endif
+        default:            return INPUT_NONE;
     }
 }
 
@@ -154,6 +176,26 @@ InputEvent Input::poll() {
     }
 
     return INPUT_NONE;
+}
+
+void Input::setTextMode(bool enabled) {
+    textMode = enabled;
+}
+
+bool Input::isTextMode() {
+    return textMode;
+}
+
+bool Input::isRecordPressed() {
+    return M5Cardputer.BtnA.isPressed();
+}
+
+bool Input::wasRecordPressed() {
+    return M5Cardputer.BtnA.wasPressed();
+}
+
+bool Input::wasRecordReleased() {
+    return M5Cardputer.BtnA.wasReleased();
 }
 
 bool Input::shouldQuit() {

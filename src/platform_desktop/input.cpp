@@ -137,6 +137,26 @@ InputEvent Input::poll() {
     return INPUT_NONE;
 }
 
+void Input::setTextMode(bool enabled) {
+    (void)enabled;
+}
+
+bool Input::isTextMode() {
+    return false;
+}
+
+bool Input::isRecordPressed() {
+    return false;
+}
+
+bool Input::wasRecordPressed() {
+    return false;
+}
+
+bool Input::wasRecordReleased() {
+    return false;
+}
+
 bool Input::shouldQuit() {
     return quitRequested;
 }

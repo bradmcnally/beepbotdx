@@ -109,6 +109,11 @@ void SoundView::exit() {
 // --- Update methods ---
 
 void SoundView::updateList(InputEvent event) {
+    if (Input::wasRecordPressed()) {
+        startRecording();
+        return;
+    }
+
     switch (event) {
         case INPUT_UP:
             if (_cursor >= 4) _cursor -= 4;
@@ -233,7 +238,7 @@ void SoundView::updateCountdown(InputEvent event) {
 }
 
 void SoundView::updateRecording(InputEvent event) {
-    if (event == INPUT_ENTER || Audio::getRecordedLength() >= MAX_SAMPLE_LENGTH) {
+    if (event == INPUT_ENTER || Input::wasRecordReleased() || Audio::getRecordedLength() >= MAX_SAMPLE_LENGTH) {
         stopRecording();
     }
 }
