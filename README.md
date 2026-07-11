@@ -20,6 +20,14 @@ Record sounds with the built-in mic, import WAV files from SD, build patterns, a
 - **`\(^_^)/`** —  beepb0t reacts to your actions and provides feedback
 - **Settings** — auto-save, LED mode, confirm delete, boot to project/list
 
+## Workflow
+
+1. Record or import sounds → trim to tighten
+2. Build patterns on the 16-step grid
+3. Chain patterns into a song
+4. Listen to the song and vibe with the visualization
+5. Export the song to WAV on SD
+
 ## Controls
 
 | Key | Action |
