@@ -59,18 +59,15 @@ void App::onStep(uint8_t step) {
 
     // Animate on beat
     if (step % 4 == 0) {
-        app->_character.setState(CHAR_LISTENING);
         if (app->_danceStyle == 0) {
             app->_character.setState((step / 4) % 2 == 0 ? CHAR_DANCE_R : CHAR_DANCE_L);
         } else if (app->_danceStyle == 1) {
-            app->_character.setState(CHAR_BEAT);
+            app->_character.setState((step / 4) % 2 == 0 ? CHAR_HEADPHONES_L : CHAR_HEADPHONES_R);
         } else if (app->_danceStyle == 2) {
             app->_character.setState((step / 4) % 2 == 0 ? CHAR_DANCE_UP_L : CHAR_DANCE_UP_R);
         } else {
             app->_character.setState((step / 4) % 2 == 0 ? CHAR_POINT_R : CHAR_POINT_L);
         }
-    } else if (app->_character.getState() == CHAR_IDLE) {
-        app->_character.setState(CHAR_LISTENING);
     }
 
     // LED
@@ -95,7 +92,7 @@ void App::onTrigger(uint8_t soundIndex) {
         Audio::triggerSound(slot.samples, slot.length, slot.sampleRate, slot.level * 255 / 100);
     }
     app->_stepTriggerCount++;
-    if (app->_stepTriggerCount >= 3) {
+    if (app->_stepTriggerCount >= 8) {
         app->_character.setState(CHAR_JAMMING);
     }
     app->_playView.onTrigger(soundIndex);

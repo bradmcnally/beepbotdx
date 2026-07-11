@@ -74,7 +74,7 @@ void PatternEditView::toggleStep(uint8_t sound) {
     Pattern& pat = _project.patterns[_patternIndex];
     bool wasSet = pat.steps[_cursorX] & (1 << sound);
     pat.steps[_cursorX] ^= (1 << sound);
-    if (!wasSet) _character.setState(CHAR_BEAT);
+    if (!wasSet) _character.setState(CHAR_SPARKLE);
     _project.dirty = true;
 }
 

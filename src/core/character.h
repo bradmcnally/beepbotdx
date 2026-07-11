@@ -29,6 +29,11 @@ enum CharacterState {
     CHAR_SHIFTY,
     CHAR_POINT_L,
     CHAR_POINT_R,
+    CHAR_HEADPHONES_L,
+    CHAR_HEADPHONES_R,
+    CHAR_SPARKLE,
+    CHAR_COOL,
+    CHAR_ZOMBIE,
 };
 
 class Character {

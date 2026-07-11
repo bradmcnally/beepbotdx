@@ -8,11 +8,13 @@ void Character::setState(CharacterState state) {
     if (state == CHAR_BEAT || state == CHAR_DANCE_L || state == CHAR_DANCE_R
         || state == CHAR_DANCE_UP_L || state == CHAR_DANCE_UP_R
         || state == CHAR_POINT_L || state == CHAR_POINT_R
-        || state == CHAR_JAMMING || state == CHAR_RUDE) {
+        || state == CHAR_HEADPHONES_L || state == CHAR_HEADPHONES_R
+        || state == CHAR_SPARKLE || state == CHAR_JAMMING || state == CHAR_RUDE) {
         if (_state != CHAR_BEAT && _state != CHAR_DANCE_L && _state != CHAR_DANCE_R
             && _state != CHAR_DANCE_UP_L && _state != CHAR_DANCE_UP_R
             && _state != CHAR_POINT_L && _state != CHAR_POINT_R
-            && _state != CHAR_JAMMING && _state != CHAR_RUDE) {
+            && _state != CHAR_HEADPHONES_L && _state != CHAR_HEADPHONES_R
+            && _state != CHAR_SPARKLE && _state != CHAR_JAMMING && _state != CHAR_RUDE) {
             _prevState = _state;
         }
     }
@@ -83,6 +85,11 @@ const char* Character::getFace() const {
         case CHAR_DANCE_UP_R: return "┏(^0^)┓";
         case CHAR_POINT_L:   return "<(^_^<)";
         case CHAR_POINT_R:  return "(>^_^)>";
+        case CHAR_HEADPHONES_L: return "d(o_o)b";
+        case CHAR_HEADPHONES_R: return "d(O_O)b";
+        case CHAR_SPARKLE:  return "(*_*)";
+        case CHAR_COOL:     return "(⌐O_O)";
+        case CHAR_ZOMBIE:   return "(¬º-°)¬";
         case CHAR_SHIFTY: {
             uint32_t frame = (elapsed / 500) % 2;
             if (frame == 0) return "(<_<)";
@@ -104,7 +111,7 @@ void Character::tick() {
     uint32_t now = millis();
     uint32_t elapsed = now - _stateTime;
 
-    if (_state == CHAR_BEAT || _state == CHAR_JAMMING || _state == CHAR_RUDE) {
+    if (_state == CHAR_BEAT || _state == CHAR_JAMMING || _state == CHAR_RUDE || _state == CHAR_SPARKLE) {
         if (elapsed > 300) {
             _state = _prevState;
         }
@@ -129,7 +136,8 @@ void Character::tick() {
     }
     if (_state == CHAR_LISTENING || _state == CHAR_DANCE_L || _state == CHAR_DANCE_R
         || _state == CHAR_DANCE_UP_L || _state == CHAR_DANCE_UP_R
-        || _state == CHAR_POINT_L || _state == CHAR_POINT_R) {
+        || _state == CHAR_POINT_L || _state == CHAR_POINT_R
+        || _state == CHAR_HEADPHONES_L || _state == CHAR_HEADPHONES_R) {
         if (elapsed > 600) {
             _state = CHAR_IDLE;
             _stateTime = now;

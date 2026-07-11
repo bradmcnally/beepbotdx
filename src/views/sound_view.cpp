@@ -133,13 +133,7 @@ void SoundView::updateList(InputEvent event) {
             } else {
                 _subState = STATE_RECORD_READY;
                 _character.setState(CHAR_IDLE);
-                { uint32_t used = 0;
-                for (int i = 0; i < NUM_SOUNDS; i++) {
-                    if (_project.sounds[i].occupied) used += _project.sounds[i].length * 2;
-                }
-                uint32_t budget = Memory::getSampleBudget();
-                uint8_t pct = budget > 0 ? (uint8_t)(used * 100 / budget) : 0;
-                char memMsg[12]; snprintf(memMsg, sizeof(memMsg), "mem %d%%", pct);
+                { char memMsg[16]; snprintf(memMsg, sizeof(memMsg), "%luKB free", (unsigned long)(Memory::getFree() / 1024));
                 _character.say(memMsg); }
             }
             break;
@@ -149,7 +143,7 @@ void SoundView::updateList(InputEvent event) {
         case INPUT_PLUS:
             _subState = STATE_RECORD_READY;
             _character.setState(CHAR_IDLE);
-            { char memMsg[16]; snprintf(memMsg, sizeof(memMsg), "%luKB free", Memory::getFree() / 1024); _character.say(memMsg); }
+            { char memMsg[16]; snprintf(memMsg, sizeof(memMsg), "%luKB free", (unsigned long)(Memory::getFree() / 1024)); _character.say(memMsg); }
             break;
         case INPUT_BACK:
             if (_project.sounds[_cursor].occupied) {
@@ -302,15 +296,8 @@ void SoundView::updateTrim(InputEvent event) {
         case INPUT_ENTER: {
             applyTrim();
             _character.setState(CHAR_SUCCESS);
-            uint32_t used = 0;
-            for (int i = 0; i < NUM_SOUNDS; i++) {
-                if (_project.sounds[i].occupied)
-                    used += _project.sounds[i].length * 2;
-            }
-            uint32_t budget = Memory::getSampleBudget();
-            uint8_t pct = budget > 0 ? (uint8_t)(used * 100 / budget) : 0;
-            char memMsg[12];
-            snprintf(memMsg, sizeof(memMsg), "mem %d%%", pct);
+            char memMsg[16];
+            snprintf(memMsg, sizeof(memMsg), "%luKB free", (unsigned long)(Memory::getFree() / 1024));
             _character.say(memMsg);
             _subState = STATE_LIST;
             break;
@@ -364,7 +351,7 @@ void SoundView::updateLoadBrowser(InputEvent event) {
             SoundSlotOps::free(_previewSlot);
             _subState = STATE_RECORD_READY;
             _character.setState(CHAR_IDLE);
-            { char memMsg[16]; snprintf(memMsg, sizeof(memMsg), "%luKB free", Memory::getFree() / 1024); _character.say(memMsg); }
+            { char memMsg[16]; snprintf(memMsg, sizeof(memMsg), "%luKB free", (unsigned long)(Memory::getFree() / 1024)); _character.say(memMsg); }
             break;
         default:
             break;
@@ -809,6 +796,7 @@ void SoundView::stopRecording() {
     slot.occupied = (slot.length > 0);
 
     if (slot.occupied) {
+        SoundSlotOps::shrinkToFit(slot);
         char defaultName[9];
         snprintf(defaultName, sizeof(defaultName), "REC%d", _cursor + 1);
         SoundSlotOps::setName(slot, defaultName);
@@ -819,6 +807,7 @@ void SoundView::stopRecording() {
         _character.setState(CHAR_SUCCESS);
         _character.say("got it!");
     } else {
+        SoundSlotOps::free(slot);
         _character.setState(CHAR_ERROR);
         _character.say("nothing?");
         _subState = STATE_LIST;

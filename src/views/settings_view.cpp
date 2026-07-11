@@ -71,7 +71,7 @@ void SettingsView::draw(Canvas& canvas) {
     const int labelX = 7;
     const int valueX = 140;
 
-    const char* labels[] = {"AUTO-SAVE", "LED MODE", "WARNINGS", "BOOT"};
+    const char* labels[] = {"AUTO-SAVE", "LED MODE", "CONFIRM DEL", "BOOT"};
     const char* values[NUM_ITEMS];
 
     values[0] = _settings.autoSave ? "ON" : "OFF";

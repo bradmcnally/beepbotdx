@@ -9,7 +9,7 @@ Record sounds with the built-in mic, import WAV files from SD, build patterns, a
 - **8 projects** - 8 color themes, renameable
 - **8 sound slots** - 16kHz mono audio, 2 second max sample length, trim recorded or imported wav files
 - **16 pattern slots** - with copy/paste
-- **16-step sequencer** — 16 patterns, each with 8 tracks, 4-voice polyphony
+- **16-step sequencer** — 16 patterns, each with 8 tracks, 8-voice polyphony
 - **Song mode** — chain up to 16 patterns
 - **Live play** — trigger sounds and patterns in real time with playback visualization
 - **Settings** — auto-save, LED mode (on/metronome/off), confirm delete, boot to project
@@ -163,5 +163,3 @@ Press **H** on any screen for context-sensitive keyboard shortcuts.
 | SPACE | Play/stop |
 | 1-8 | Audition |
 | E | Export WAV |
-
-## Constraints

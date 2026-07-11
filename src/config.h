@@ -3,7 +3,7 @@
 // Audio
 #define SAMPLE_RATE 16000
 #define MAX_SAMPLE_LENGTH 32000  // 2.0s at 16kHz
-#define NUM_VOICES 4
+#define NUM_VOICES 8
 #define SPEAKER_VOLUME 200
 
 // Project limits
