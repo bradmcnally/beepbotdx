@@ -185,7 +185,7 @@ Requires SDL2 and SDL2_image.
 
 ```sh
 # macOS
-brew install sdl2 sdl2_image
+brew install cmake pkg-config sdl2 sdl2_image
 
 # Build (Cardputer / ADV, 240x135)
 cmake --preset adv && cmake --build build && ./build/beepbotdx
