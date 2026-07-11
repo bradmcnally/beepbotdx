@@ -23,6 +23,7 @@ static uint32_t _recMaxLength = 0;
 static uint32_t _recOffset = 0;
 static bool _recording = false;
 static SDL_AudioDeviceID _capDev = 0;
+static int _capDevRate = SAMPLE_RATE;
 
 static void audioCallback(void* userdata, Uint8* stream, int len) {
     (void)userdata;
@@ -76,7 +77,9 @@ void Audio::recordStart(int16_t* buffer, uint32_t maxLength) {
     want.samples = 1024;
     want.callback = nullptr;
 
-    _capDev = SDL_OpenAudioDevice(nullptr, 1, &want, nullptr, 0);
+    SDL_AudioSpec have = {};
+    _capDev = SDL_OpenAudioDevice(nullptr, 1, &want, &have, SDL_AUDIO_ALLOW_FREQUENCY_CHANGE);
+    _capDevRate = have.freq;
     if (_capDev) SDL_PauseAudioDevice(_capDev, 0);
 }
 
@@ -85,11 +88,33 @@ void Audio::recordUpdate() {
     if (_recOffset >= _recMaxLength) return;
 
     uint32_t available = SDL_GetQueuedAudioSize(_capDev) / 2;
-    uint32_t remaining = _recMaxLength - _recOffset;
-    uint32_t toRead = available < remaining ? available : remaining;
-    if (toRead > 0) {
+    if (available == 0) return;
+
+    if (_capDevRate == SAMPLE_RATE) {
+        uint32_t remaining = _recMaxLength - _recOffset;
+        uint32_t toRead = available < remaining ? available : remaining;
         SDL_DequeueAudio(_capDev, _recBuffer + _recOffset, toRead * 2);
         _recOffset += toRead;
+    } else {
+        int16_t tmp[4096];
+        uint32_t toRead = available < 4096 ? available : 4096;
+        SDL_DequeueAudio(_capDev, tmp, toRead * 2);
+
+        double ratio = (double)SAMPLE_RATE / _capDevRate;
+        uint32_t outCount = (uint32_t)(toRead * ratio);
+        uint32_t remaining = _recMaxLength - _recOffset;
+        if (outCount > remaining) outCount = remaining;
+
+        for (uint32_t i = 0; i < outCount; i++) {
+            double srcPos = i / ratio;
+            uint32_t idx = (uint32_t)srcPos;
+            double frac = srcPos - idx;
+            if (idx + 1 < toRead)
+                _recBuffer[_recOffset + i] = (int16_t)(tmp[idx] * (1.0 - frac) + tmp[idx + 1] * frac);
+            else
+                _recBuffer[_recOffset + i] = tmp[idx];
+        }
+        _recOffset += outCount;
     }
 }
 
