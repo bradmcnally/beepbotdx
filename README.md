@@ -39,16 +39,10 @@ Record sounds with the built-in mic, import WAV files from SD, build patterns, a
 | CTRL/OK | Select/confirm |
 | 1-8 | Trigger sounds |
 
-Navigation uses a tab menu (hold TAB + arrows or tap to cycle).
+Navigation uses a tab menu (hold TAB + arrows or tap to cycle). Press **H** on any screen for context-sensitive keyboard shortcuts. Press **G** for settings.
 
 ![Menu](assets/menu.png)
-
-Press **H** on any screen for context-sensitive keyboard shortcuts.
-
 ![Help](assets/help.png)
-
-Press **G** for settings.
-
 ![Help](assets/settings.png)
 
 ### Sound
