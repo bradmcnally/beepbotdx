@@ -46,7 +46,6 @@ Navigation uses a tab menu (hold TAB + arrows or tap to cycle). Press **H** on a
 
 ### Sound
 ![Sounds](assets/sounds.png)
-![Slot](assets/slot.png)
 ![Recording](assets/recording.png)
 ![Import](assets/import.png)
 | Key | Action |
@@ -62,6 +61,7 @@ Navigation uses a tab menu (hold TAB + arrows or tap to cycle). Press **H** on a
 ### Trim
 ![Trim 1](assets/trim_1.png)
 ![Trim 2](assets/trim_2.png)
+![Trim 3](assets/trim_3.png)
 | Key | Action |
 |-----|--------|
 | L/R | Adjust trim point |
@@ -84,6 +84,7 @@ Navigation uses a tab menu (hold TAB + arrows or tap to cycle). Press **H** on a
 ### Pattern Edit
 ![Sequencer 1](assets/sequencer.png)
 ![Sequencer 2](assets/sequencer_2.png)
+![Sequencer 3](assets/sequencer_3.png)
 | Key | Action |
 |-----|--------|
 | CTRL/OK | Toggle step |
@@ -111,6 +112,10 @@ Navigation uses a tab menu (hold TAB + arrows or tap to cycle). Press **H** on a
 | SPACE | Play/stop |
 | 1-8 | Audition |
 | E | Export WAV |
+
+## SD Card
+
+Place WAV files for import in `/beepbotdx/samples/` on the SD card. Files should be 16kHz mono.
 
 ## Known Issues
 
