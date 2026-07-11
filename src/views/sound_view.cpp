@@ -145,11 +145,6 @@ void SoundView::updateList(InputEvent event) {
         case INPUT_SPACE:
             triggerSlot(_cursor);
             break;
-        case INPUT_PLUS:
-            _subState = STATE_RECORD_READY;
-            _character.setState(CHAR_IDLE);
-            { char memMsg[16]; snprintf(memMsg, sizeof(memMsg), "%luKB free", (unsigned long)(Memory::getFree() / 1024)); _character.say(memMsg); }
-            break;
         case INPUT_BACK:
             if (_project.sounds[_cursor].occupied) {
                 if (GlobalSettings::instance && GlobalSettings::instance->confirmDelete) {
@@ -287,16 +282,6 @@ void SoundView::updateTrim(InputEvent event) {
             _playbackRate = slot.sampleRate;
             _playbackActive = true;
             _character.setState(CHAR_BEAT);
-            break;
-        case INPUT_PLUS:
-            if (slot.level <= 95) slot.level += 5;
-            else slot.level = 100;
-            _project.dirty = true;
-            break;
-        case INPUT_MINUS:
-            if (slot.level >= 5) slot.level -= 5;
-            else slot.level = 0;
-            _project.dirty = true;
             break;
         case INPUT_ENTER: {
             applyTrim();

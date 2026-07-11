@@ -58,6 +58,7 @@ char Input::getChar() {
 }
 
 static bool bHeld = false;
+static bool lHeld = false;
 static bool nHeld = false;
 static bool fnHeld = false;
 static bool tabHeld = false;
@@ -65,6 +66,10 @@ static bool tabEventSent = false;
 
 bool Input::isBHeld() {
     return bHeld;
+}
+
+bool Input::isLHeld() {
+    return lHeld;
 }
 
 bool Input::isNHeld() {
@@ -86,14 +91,16 @@ InputEvent Input::poll() {
     fnHeld = status.fn;
     tabHeld = status.tab;
     bHeld = false;
+    lHeld = false;
     nHeld = false;
     uint8_t keyCount = 0;
     for (auto key : status.word) {
         if (key) keyCount++;
         if (key == 'b') bHeld = true;
+        if (key == 'l') lHeld = true;
         if (key == 'n') nHeld = true;
     }
-    if (keyCount <= 1) { bHeld = false; nHeld = false; }
+    if (keyCount <= 1) { bHeld = false; lHeld = false; nHeld = false; }
 
     // Track tab press/release for edge detection
     if (!tabHeld) {

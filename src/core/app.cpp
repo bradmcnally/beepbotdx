@@ -293,9 +293,24 @@ void App::handleGlobalInput(InputEvent& event) {
         return;
     }
 
-    // +/- volume or B+/- BPM (not on project screen, not in trim)
-    if ((event == INPUT_PLUS || event == INPUT_MINUS) && _currentScreen != SCREEN_PROJECT
-        && !(_currentScreen == SCREEN_SOUND && _soundView.inTrim())) {
+    // L+/- adjusts sample level (in trim)
+    if ((event == INPUT_PLUS || event == INPUT_MINUS) && Input::isLHeld()
+        && _currentScreen == SCREEN_SOUND && _soundView.inTrim()) {
+        SoundSlot& slot = _project.sounds[_soundView.getCursor()];
+        if (event == INPUT_PLUS) {
+            if (slot.level <= 95) slot.level += 5;
+            else slot.level = 100;
+        } else {
+            if (slot.level >= 5) slot.level -= 5;
+            else slot.level = 0;
+        }
+        _project.dirty = true;
+        event = INPUT_NONE;
+        return;
+    }
+
+    // +/- volume or B+/- BPM (not on project screen)
+    if ((event == INPUT_PLUS || event == INPUT_MINUS) && _currentScreen != SCREEN_PROJECT) {
         if (Input::isBHeld()) {
             if (event == INPUT_PLUS && _project.bpm < MAX_BPM) { _project.bpm++; _project.dirty = true; }
             if (event == INPUT_MINUS && _project.bpm > MIN_BPM) { _project.bpm--; _project.dirty = true; }

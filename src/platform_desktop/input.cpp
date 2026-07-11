@@ -4,6 +4,7 @@
 
 static char lastChar = 0;
 static bool bHeld = false;
+static bool lHeld = false;
 static bool nHeld = false;
 static bool fnHeld = false;
 static bool tabHeld = false;
@@ -40,6 +41,10 @@ bool Input::isBHeld() {
     return bHeld;
 }
 
+bool Input::isLHeld() {
+    return lHeld;
+}
+
 bool Input::isNHeld() {
     return nHeld;
 }
@@ -55,6 +60,7 @@ bool Input::isTabHeld() {
 InputEvent Input::poll() {
     const Uint8* keys = SDL_GetKeyboardState(nullptr);
     bHeld = keys[SDL_SCANCODE_B] != 0;
+    lHeld = keys[SDL_SCANCODE_L] != 0;
     nHeld = keys[SDL_SCANCODE_N] != 0;
     fnHeld = keys[SDL_SCANCODE_LSHIFT] || keys[SDL_SCANCODE_RSHIFT];
     tabHeld = keys[SDL_SCANCODE_TAB] != 0;
