@@ -188,15 +188,10 @@ Requires SDL2 and SDL2_image.
 brew install sdl2 sdl2_image
 
 # Build (Cardputer / ADV, 240x135)
-cmake -B build
-cmake --build build
+cmake --preset adv && cmake --build build && ./build/beepbotdx
 
-# Build (Zero, 128x128)
-cmake -B build -DSCREEN_W=128 -DSCREEN_H=128
-cmake --build build
-
-# Run
-./build/beepbotdx
+# Build (Zero, 320x170)
+cmake --preset zero && cmake --build build_zero && ./build_zero/beepbotdx
 ```
 
 ### Tests
