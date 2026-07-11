@@ -1,4 +1,5 @@
 #include "platform/input.h"
+#include "platform/display.h"
 #include <SDL2/SDL.h>
 
 static char lastChar = 0;
@@ -66,6 +67,11 @@ InputEvent Input::poll() {
         }
         if (ev.type == SDL_KEYDOWN && ev.key.repeat == 0) {
             SDL_Scancode sc = ev.key.keysym.scancode;
+
+            if (sc == SDL_SCANCODE_F11) {
+                Display::toggleFullscreen();
+                return INPUT_NONE;
+            }
 
             if (isArrow(sc)) {
                 lastArrowKey = sc;

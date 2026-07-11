@@ -42,3 +42,5 @@ void Display::setBrightness(uint8_t value) {
     M5Cardputer.Display.setBrightness(value);
 }
 
+void Display::toggleFullscreen() {}
+
