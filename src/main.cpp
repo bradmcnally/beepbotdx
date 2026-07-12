@@ -1,5 +1,7 @@
 #include <M5Cardputer.h>
 #include <Preferences.h>
+#include <esp_wifi.h>
+#include <esp_bt.h>
 #include "config.h"
 #include "core/app.h"
 #include "core/pattern_gen.h"
@@ -119,6 +121,12 @@ static void showBootScreen(uint16_t accentColor) {
 void setup() {
     auto cfg = M5.config();
     M5Cardputer.begin(cfg);
+
+    esp_wifi_stop();
+    esp_wifi_deinit();
+    esp_bt_controller_disable();
+    esp_bt_controller_deinit();
+    esp_bt_controller_mem_release(ESP_BT_MODE_BTDM);
 
     Display::init();
     Input::init();

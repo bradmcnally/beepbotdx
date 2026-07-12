@@ -30,6 +30,7 @@ private:
         STATE_FX,
         STATE_LOAD_BROWSER,
         STATE_RENAME,
+        STATE_PROJECT_INFO,
     };
 
     void updateList(InputEvent event);
@@ -41,6 +42,7 @@ private:
     void updateFx(InputEvent event);
     void updateLoadBrowser(InputEvent event);
     void updateRename(InputEvent event);
+    void updateProjectInfo(InputEvent event);
 
     void drawList(Canvas& canvas, const struct Theme& theme);
     void drawRecordReady(Canvas& canvas, const struct Theme& theme);
@@ -53,6 +55,7 @@ private:
                   uint8_t maxVal, bool enabled, bool focused, const struct Theme& theme);
     void drawLoadBrowser(Canvas& canvas, const struct Theme& theme);
     void drawRename(Canvas& canvas, const struct Theme& theme);
+    void drawProjectInfo(Canvas& canvas, const struct Theme& theme);
 
     void startRecording();
     void stopRecording();
@@ -93,6 +96,9 @@ private:
     BloomField _bloom;
     uint32_t _recordStartTime;
     uint32_t _recordDoneTime;
+    uint32_t _recordMaxLength;
+    uint8_t _infoCursor;
+    int _infoScroll;
 
     // Audition flash
     uint8_t _flashSlot;

@@ -5,7 +5,7 @@
 #include "slot_fx.h"
 
 static const uint32_t PROJECT_MAGIC = 0x42505844; // "BPXD"
-static const uint8_t PROJECT_VERSION = 2;
+static const uint8_t PROJECT_VERSION = 3;
 
 struct ProjectHeader {
     uint32_t magic;
@@ -20,4 +20,5 @@ struct ProjectHeader {
     uint8_t fxEnabled[NUM_SOUNDS];
     Pattern patterns[NUM_PATTERNS];
     uint8_t song[NUM_SONG_POSITIONS];
+    uint8_t bitDepth;
 };

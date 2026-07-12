@@ -439,6 +439,7 @@ bool Storage::saveProject(const Project& project, uint8_t slot) {
     hdr.version = PROJECT_VERSION;
     hdr.bpm = project.bpm;
     hdr.themeIndex = project.themeIndex;
+    hdr.bitDepth = (uint8_t)project.bitDepth;
     strncpy(hdr.name, project.name, 8);
     hdr.name[8] = '\0';
     memcpy(hdr.patterns, project.patterns, sizeof(hdr.patterns));
@@ -498,6 +499,7 @@ bool Storage::loadProject(Project& project, uint8_t slot) {
 
     project.bpm = hdr.bpm;
     project.themeIndex = hdr.themeIndex;
+    project.bitDepth = (BitDepth)hdr.bitDepth;
     strncpy(project.name, hdr.name, 8);
     project.name[8] = '\0';
     memcpy(project.patterns, hdr.patterns, sizeof(project.patterns));
