@@ -1,5 +1,6 @@
 #include <M5Cardputer.h>
 #include "input.h"
+#include <cmath>
 
 static const char KEY_UP    = ';';
 static const char KEY_DOWN  = '.';
@@ -15,8 +16,12 @@ static const char ZERO_RIGHT = 'c';
 #endif
 
 static bool textMode = false;
-
 static char lastChar = 0;
+
+static const float SHAKE_THRESHOLD = 6.0f;
+static const unsigned long SHAKE_COOLDOWN = 500;
+static unsigned long lastShakeTime = 0;
+static bool imuReady = false;
 
 static unsigned long lastKeyTime = 0;
 static unsigned long keyRepeatDelay = 300;
@@ -51,6 +56,8 @@ static InputEvent arrowToEvent(char key) {
 }
 
 void Input::init() {
+    M5.Imu.begin();
+    imuReady = M5.Imu.isEnabled();
 }
 
 char Input::getChar() {
@@ -180,6 +187,21 @@ InputEvent Input::poll() {
     } else {
         lastArrowKey = 0;
         keyRepeating = false;
+    }
+
+    if (imuReady) {
+        unsigned long now = millis();
+        if (now - lastShakeTime >= SHAKE_COOLDOWN) {
+            M5.Imu.update();
+            auto data = M5.Imu.getImuData();
+            float mag = sqrtf(data.accel.x * data.accel.x +
+                              data.accel.y * data.accel.y +
+                              data.accel.z * data.accel.z);
+            if (mag > SHAKE_THRESHOLD) {
+                lastShakeTime = now;
+                return INPUT_SHAKE;
+            }
+        }
     }
 
     return INPUT_NONE;

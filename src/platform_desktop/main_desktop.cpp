@@ -2,6 +2,7 @@
 #include <cstdio>
 #include "config.h"
 #include "core/app.h"
+#include "core/pattern_gen.h"
 #include "platform/audio.h"
 #include "platform/input.h"
 #include "platform/display.h"
@@ -125,6 +126,7 @@ int main(int argc, char* argv[]) {
     Audio::init();
     Storage::init();
     Memory::init();
+    PatternGen::init();
 
     uint8_t lastSlot = loadLastSlot();
     uint8_t themeIdx = Storage::loadProjectTheme(lastSlot);

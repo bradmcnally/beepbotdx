@@ -24,6 +24,7 @@ enum InputEvent {
     INPUT_MINUS,
     INPUT_CHAR,
     INPUT_ESC,
+    INPUT_SHAKE,
 };
 
 namespace Input {

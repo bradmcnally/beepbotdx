@@ -51,6 +51,9 @@ void SettingsView::update(InputEvent event) {
             } else if (_cursor == 3) {
                 _settings.bootToProject = !_settings.bootToProject;
                 _character.say(_settings.bootToProject ? "projects" : "last");
+            } else if (_cursor == 4) {
+                _settings.shakeGen = !_settings.shakeGen;
+                _character.say(_settings.shakeGen ? "on" : "off");
             }
             break;
         case INPUT_ESC:
@@ -71,7 +74,7 @@ void SettingsView::draw(Canvas& canvas) {
     const int labelX = 7;
     const int valueX = 140;
 
-    const char* labels[] = {"AUTO-SAVE", "LED MODE", "CONFIRM DEL", "BOOT"};
+    const char* labels[] = {"AUTO-SAVE", "LED MODE", "CONFIRM DEL", "BOOT", "SHAKE GEN"};
     const char* values[NUM_ITEMS];
 
     values[0] = _settings.autoSave ? "ON" : "OFF";
@@ -79,6 +82,7 @@ void SettingsView::draw(Canvas& canvas) {
     values[1] = ledNames[_settings.ledMode];
     values[2] = _settings.confirmDelete ? "ON" : "OFF";
     values[3] = _settings.bootToProject ? "PROJ LIST" : "LAST PROJ";
+    values[4] = _settings.shakeGen ? "ON" : "OFF";
 
     for (uint8_t i = 0; i < NUM_ITEMS; i++) {
         int y = startY + i * itemH;

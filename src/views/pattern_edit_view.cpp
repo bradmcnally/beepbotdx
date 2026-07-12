@@ -1,11 +1,14 @@
 #include "pattern_edit_view.h"
+#include "settings_view.h"
 #include "platform/audio.h"
 #include "platform/input.h"
 #include "platform/power.h"
 #include "core/theme.h"
 #include "core/timing.h"
+#include "core/pattern_gen.h"
 #include "config.h"
 #include <cstdio>
+#include <cstring>
 
 PatternEditView::PatternEditView(Project& project, Character& character, Sequencer& sequencer)
     : _project(project), _character(character), _sequencer(sequencer),
@@ -66,6 +69,16 @@ void PatternEditView::update(InputEvent event) {
         case INPUT_NUM6: handleNumber(5); break;
         case INPUT_NUM7: handleNumber(6); break;
         case INPUT_NUM8: handleNumber(7); break;
+        case INPUT_SHAKE:
+            if (!_sequencer.isPlaying() &&
+                GlobalSettings::instance && GlobalSettings::instance->shakeGen)
+                generatePattern();
+            break;
+        case INPUT_CHAR: {
+            char ch = Input::getChar();
+            if (ch == 'r' && !_sequencer.isPlaying()) generatePattern();
+            break;
+        }
         default: break;
     }
 }
@@ -208,6 +221,15 @@ void PatternEditView::draw(Canvas& canvas) {
     char bpmLabel[10];
     snprintf(bpmLabel, sizeof(bpmLabel), "BPM:%d", _project.bpm);
     canvas.drawString(bpmLabel, hdrLeft + hdrContentW - 4, infoY);
+}
+
+void PatternEditView::generatePattern() {
+    GenResult result = PatternGen::generate(_project);
+    Pattern& pat = _project.patterns[_patternIndex];
+    memcpy(pat.steps, result.steps, NUM_STEPS);
+    _project.dirty = true;
+    _character.setState(CHAR_SPARKLE);
+    _character.say(result.message);
 }
 
 void PatternEditView::exit() {

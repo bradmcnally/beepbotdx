@@ -15,6 +15,7 @@ struct GlobalSettings {
     LedMode ledMode = LED_ON;
     bool confirmDelete = true;
     bool bootToProject = false;
+    bool shakeGen = true;
 
     static GlobalSettings* instance;
 };
@@ -37,5 +38,5 @@ private:
     uint8_t _cursor = 0;
     bool _closeRequested = false;
 
-    static const uint8_t NUM_ITEMS = 4;
+    static const uint8_t NUM_ITEMS = 5;
 };

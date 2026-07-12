@@ -27,6 +27,7 @@ set(CORE_SOURCES
     src/core/bloom_field.cpp
     src/core/canvas.cpp
     src/core/character.cpp
+    src/core/pattern_gen.cpp
     src/core/project.cpp
     src/core/sequencer.cpp
     src/core/sound_slot.cpp

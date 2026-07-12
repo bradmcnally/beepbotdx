@@ -2,6 +2,7 @@
 #include <Preferences.h>
 #include "config.h"
 #include "core/app.h"
+#include "core/pattern_gen.h"
 #include "platform/audio.h"
 #include "platform/input.h"
 #include "platform/display.h"
@@ -40,6 +41,7 @@ static void onSaveSettings(const GlobalSettings& settings) {
     prefs.putUChar("ledMode", (uint8_t)settings.ledMode);
     prefs.putBool("confirmDel", settings.confirmDelete);
     prefs.putBool("bootProj", settings.bootToProject);
+    prefs.putBool("shakeGen", settings.shakeGen);
     prefs.end();
 }
 
@@ -124,6 +126,7 @@ void setup() {
     Storage::init();
     Memory::init();
     LED::init();
+    PatternGen::init();
 
     prefs.begin("beepbotdx", false);
     displayBrightness = prefs.getUChar("brightness", 80);
@@ -132,6 +135,7 @@ void setup() {
     uint8_t ledMode = prefs.getUChar("ledMode", 0);
     bool confirmDel = prefs.getBool("confirmDel", true);
     bool bootProj = prefs.getBool("bootProj", false);
+    bool shakeGen = prefs.getBool("shakeGen", true);
     prefs.end();
     Display::setBrightness((displayBrightness * 255) / 100);
 
@@ -150,6 +154,7 @@ void setup() {
     app.getSettings().ledMode = (LedMode)ledMode;
     app.getSettings().confirmDelete = confirmDel;
     app.getSettings().bootToProject = bootProj;
+    app.getSettings().shakeGen = shakeGen;
     if (bootProj) {
         app.openProjectList(lastSlot);
     } else {

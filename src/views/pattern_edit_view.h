@@ -23,6 +23,7 @@ private:
     void toggleStepAt(uint8_t step);
     void triggerSound(uint8_t sound);
     void handleNumber(uint8_t num);
+    void generatePattern();
 
     Project& _project;
     Character& _character;
