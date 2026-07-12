@@ -89,7 +89,7 @@ void App::onTrigger(uint8_t soundIndex) {
     App* app = _instance;
     if (soundIndex < NUM_SOUNDS && app->_project.sounds[soundIndex].occupied) {
         SoundSlot& slot = app->_project.sounds[soundIndex];
-        Audio::triggerSound(slot.samples, slot.length, slot.sampleRate, slot.level * 255 / 100);
+        Audio::triggerSound(slot.samples, slot.length, slot.sampleRate, slot.level * 255 / 100, &slot.fx);
     }
     app->_stepTriggerCount++;
     if (app->_stepTriggerCount >= 8) {
@@ -192,9 +192,10 @@ void App::handleGlobalInput(InputEvent& event) {
         return;
     }
 
-    // F key flips table
+    // F key flips table (unless on sound screen where it opens FX)
     if (event == INPUT_CHAR && Input::getChar() == 'f'
-        && _currentScreen != SCREEN_PROJECT) {
+        && _currentScreen != SCREEN_PROJECT
+        && _currentScreen != SCREEN_SOUND) {
         _character.setState(CHAR_FLIP);
         event = INPUT_NONE;
         return;
@@ -293,9 +294,9 @@ void App::handleGlobalInput(InputEvent& event) {
         return;
     }
 
-    // L+/- adjusts sample level (in trim)
+    // L+/- adjusts sample level (in trim or FX)
     if ((event == INPUT_PLUS || event == INPUT_MINUS) && Input::isLHeld()
-        && _currentScreen == SCREEN_SOUND && _soundView.inTrim()) {
+        && _currentScreen == SCREEN_SOUND && (_soundView.inTrim() || _soundView.inFx())) {
         SoundSlot& slot = _project.sounds[_soundView.getCursor()];
         if (event == INPUT_PLUS) {
             if (slot.level <= 95) slot.level += 5;
@@ -480,8 +481,13 @@ void App::drawHeader(Canvas& canvas, const Theme& theme) {
     switch (_currentScreen) {
         case SCREEN_SOUND:
             if (_soundView.inSubView()) {
-                snprintf(titleBuf, sizeof(titleBuf), "SND %02d", _soundView.getCursor() + 1);
-                title = titleBuf;
+                SoundSlot& s = _project.sounds[_soundView.getCursor()];
+                if (s.name[0]) {
+                    title = s.name;
+                } else {
+                    snprintf(titleBuf, sizeof(titleBuf), "SND %02d", _soundView.getCursor() + 1);
+                    title = titleBuf;
+                }
             } else {
                 title = "SOUND";
             }
@@ -543,11 +549,15 @@ void App::drawHelp(Canvas& canvas, const Theme& theme) {
 
     static const HelpLine soundHelp[] = {
         {"CTRL/OK", "Select"}, {"G0", "Hold to record"}, {"SPACE", "Audition"},
-        {"DEL", "Clear"}, {"I", "Import wav"}, {"R", "Rename"}, {"1-8", "Audition"},
+        {"DEL", "Clear"}, {"I", "Import wav"}, {"R", "Rename"}, {"F", "FX"}, {"T", "Trim"},
     };
     static const HelpLine trimHelp[] = {
         {"L/R", "Adjust point"}, {"U/D", "Switch start/end"}, {"SPACE", "Audition"},
         {"+/-", "Volume"}, {"CTRL/OK", "Apply"}, {"ESC", "Cancel"},
+    };
+    static const HelpLine fxHelp[] = {
+        {"L/R", "Select FX"}, {"U/D", "Adjust value"}, {"CTRL/OK", "Toggle on/off"},
+        {"SPACE", "Audition"}, {"DEL", "Reset"}, {"ESC", "Back"},
     };
     static const HelpLine patSelectHelp[] = {
         {"CTRL/OK", "Edit"}, {"SPACE", "Audition"}, {"DEL", "Clear"},
@@ -578,8 +588,10 @@ void App::drawHelp(Canvas& canvas, const Theme& theme) {
         case SCREEN_SOUND:
             if (_soundView.inTrim()) {
                 lines = trimHelp; lineCount = 6; screenTitle = "TRIM"; showGlobals = false;
+            } else if (_soundView.inFx()) {
+                lines = fxHelp; lineCount = 6; screenTitle = "FX"; showGlobals = false;
             } else {
-                lines = soundHelp; lineCount = 6; screenTitle = "SOUND";
+                lines = soundHelp; lineCount = 8; screenTitle = "SOUND";
             }
             break;
         case SCREEN_PATTERN_SELECT:

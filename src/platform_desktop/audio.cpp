@@ -1,4 +1,6 @@
 #include "platform/audio.h"
+#include "core/slot_fx.h"
+#include "core/fx_dsp.h"
 #include "config.h"
 #include <SDL2/SDL.h>
 #include <cstring>
@@ -7,16 +9,19 @@
 struct Voice {
     const int16_t* samples;
     uint32_t length;
-    uint32_t position;
     uint32_t sampleRate;
     uint8_t volume;
     bool active;
+    SlotFx fx;
+    FxFilterState filterState;
+    double fracPos;
 };
 
 static Voice _voices[NUM_VOICES];
 static uint8_t _nextChannel = 0;
 static uint8_t _volume = SPEAKER_VOLUME;
 static SDL_AudioDeviceID _playDev = 0;
+static int _playDevRate = SAMPLE_RATE;
 
 static int16_t* _recBuffer = nullptr;
 static uint32_t _recMaxLength = 0;
@@ -35,10 +40,29 @@ static void audioCallback(void* userdata, Uint8* stream, int len) {
         int32_t mix = 0;
         for (int v = 0; v < NUM_VOICES; v++) {
             if (!_voices[v].active) continue;
-            int32_t s = _voices[v].samples[_voices[v].position];
+
+            double step = (double)_voices[v].sampleRate / _playDevRate;
+            if (_voices[v].fx.enabled[FX_PITCH]) {
+                step *= FxDsp::pitchRate(_voices[v].fx.value[FX_PITCH]);
+            }
+
+            uint32_t idx = (uint32_t)_voices[v].fracPos;
+            double frac = _voices[v].fracPos - idx;
+            int16_t s;
+            if (idx + 1 < _voices[v].length) {
+                s = (int16_t)(_voices[v].samples[idx] * (1.0 - frac) +
+                              _voices[v].samples[idx + 1] * frac);
+            } else {
+                s = _voices[v].samples[idx];
+            }
+
+            s = FxDsp::processSample(s, _voices[v].fx.value,
+                                     _voices[v].fx.enabled, _voices[v].filterState,
+                                     (float)_voices[v].sampleRate);
+
             mix += (s * _voices[v].volume) / 255;
-            _voices[v].position++;
-            if (_voices[v].position >= _voices[v].length) {
+            _voices[v].fracPos += step;
+            if ((uint32_t)_voices[v].fracPos >= _voices[v].length) {
                 _voices[v].active = false;
             }
         }
@@ -59,7 +83,9 @@ void Audio::init() {
     want.samples = 512;
     want.callback = audioCallback;
 
-    _playDev = SDL_OpenAudioDevice(nullptr, 0, &want, nullptr, 0);
+    SDL_AudioSpec have = {};
+    _playDev = SDL_OpenAudioDevice(nullptr, 0, &want, &have, SDL_AUDIO_ALLOW_FREQUENCY_CHANGE);
+    _playDevRate = _playDev ? have.freq : SAMPLE_RATE;
     if (_playDev) SDL_PauseAudioDevice(_playDev, 0);
 }
 
@@ -79,7 +105,7 @@ void Audio::recordStart(int16_t* buffer, uint32_t maxLength) {
 
     SDL_AudioSpec have = {};
     _capDev = SDL_OpenAudioDevice(nullptr, 1, &want, &have, SDL_AUDIO_ALLOW_FREQUENCY_CHANGE);
-    _capDevRate = have.freq;
+    _capDevRate = _capDev ? have.freq : SAMPLE_RATE;
     if (_capDev) SDL_PauseAudioDevice(_capDev, 0);
 }
 
@@ -134,15 +160,22 @@ uint32_t Audio::getRecordedLength() {
     return _recOffset;
 }
 
-void Audio::triggerSound(const int16_t* buffer, uint32_t length, uint32_t sampleRate, uint8_t volume) {
+void Audio::triggerSound(const int16_t* buffer, uint32_t length, uint32_t sampleRate, uint8_t volume, const SlotFx* fx) {
     if (!buffer || length == 0) return;
     SDL_LockAudioDevice(_playDev);
-    _voices[_nextChannel].samples = buffer;
-    _voices[_nextChannel].length = length;
-    _voices[_nextChannel].position = 0;
-    _voices[_nextChannel].sampleRate = sampleRate;
-    _voices[_nextChannel].volume = volume;
-    _voices[_nextChannel].active = true;
+    Voice& v = _voices[_nextChannel];
+    v.samples = buffer;
+    v.length = length;
+    v.sampleRate = sampleRate;
+    v.volume = volume;
+    v.active = true;
+    v.fracPos = 0.0;
+    if (fx) {
+        v.fx = *fx;
+    } else {
+        SlotFxOps::defaults(v.fx);
+    }
+    FxDsp::initFilterState(v.filterState);
     _nextChannel = (_nextChannel + 1) % NUM_VOICES;
     SDL_UnlockAudioDevice(_playDev);
 }

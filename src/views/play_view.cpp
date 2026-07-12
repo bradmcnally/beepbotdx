@@ -55,7 +55,7 @@ void PlayView::update(InputEvent event) {
             uint8_t idx = event - INPUT_NUM1;
             if (idx < NUM_SOUNDS && _project.sounds[idx].occupied) {
                 SoundSlot& slot = _project.sounds[idx];
-                Audio::triggerSound(slot.samples, slot.length, slot.sampleRate, slot.level * 255 / 100);
+                Audio::triggerSound(slot.samples, slot.length, slot.sampleRate, slot.level * 255 / 100, &slot.fx);
                 onTrigger(idx);
                 _character.setState(CHAR_BEAT);
             }

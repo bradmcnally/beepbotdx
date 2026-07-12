@@ -1,7 +1,9 @@
 #include "platform/storage.h"
 #include "core/project_header.h"
+#include "core/fx_dsp.h"
 #include "config.h"
 #include <cstdio>
+#include <cstddef>
 #include <cstring>
 #include <dirent.h>
 #include <sys/stat.h>
@@ -83,16 +85,35 @@ bool Storage::loadWav(SoundSlot& slot, const char* path) {
             }
 
             uint32_t bytesPerSample = bitsPerSample / 8;
-            uint32_t numSamples = chunkSize / bytesPerSample / numChannels;
-            if (numSamples > MAX_SAMPLE_LENGTH) numSamples = MAX_SAMPLE_LENGTH;
+            uint32_t srcSamples = chunkSize / bytesPerSample / numChannels;
+
+            double ratio = (sampleRate > SAMPLE_RATE) ? (double)sampleRate / SAMPLE_RATE : 1.0;
+            uint32_t outSamples = (uint32_t)(srcSamples / ratio);
+            if (outSamples > MAX_SAMPLE_LENGTH) outSamples = MAX_SAMPLE_LENGTH;
+
+            uint32_t srcNeeded = (uint32_t)(outSamples * ratio) + 2;
+            if (srcNeeded > srcSamples) srcNeeded = srcSamples;
+
+            bool needsResample = (ratio > 1.0);
 
             SoundSlotOps::free(slot);
-            if (!SoundSlotOps::allocate(slot, numSamples)) {
+            if (!SoundSlotOps::allocate(slot, outSamples)) {
                 fclose(f);
                 return false;
             }
 
-            for (uint32_t i = 0; i < numSamples; i++) {
+            int16_t* readBuf = nullptr;
+            if (needsResample) {
+                readBuf = (int16_t*)malloc(srcNeeded * sizeof(int16_t));
+                if (!readBuf) {
+                    SoundSlotOps::free(slot);
+                    fclose(f);
+                    return false;
+                }
+            }
+
+            uint32_t samplesToRead = needsResample ? srcNeeded : outSamples;
+            for (uint32_t i = 0; i < samplesToRead; i++) {
                 int32_t sample = 0;
 
                 if (audioFormat == 1 && bitsPerSample == 8) {
@@ -122,6 +143,7 @@ bool Storage::loadWav(SoundSlot& slot, const char* path) {
                     sample = (int32_t)(fl * 32767.0f);
                     if (numChannels == 2) { float fr; fread(&fr, 4, 1, f); sample = (sample + (int32_t)(fr * 32767.0f)) / 2; }
                 } else {
+                    if (readBuf) free(readBuf);
                     SoundSlotOps::free(slot);
                     fclose(f);
                     return false;
@@ -129,11 +151,28 @@ bool Storage::loadWav(SoundSlot& slot, const char* path) {
 
                 if (sample > 32767) sample = 32767;
                 if (sample < -32768) sample = -32768;
-                slot.samples[i] = (int16_t)sample;
+
+                if (needsResample) {
+                    readBuf[i] = (int16_t)sample;
+                } else {
+                    slot.samples[i] = (int16_t)sample;
+                }
             }
 
-            slot.length = numSamples;
-            slot.sampleRate = sampleRate;
+            if (needsResample) {
+                for (uint32_t i = 0; i < outSamples; i++) {
+                    double srcPos = i * ratio;
+                    uint32_t idx = (uint32_t)srcPos;
+                    float frac = (float)(srcPos - idx);
+                    int16_t s0 = readBuf[idx];
+                    int16_t s1 = (idx + 1 < srcNeeded) ? readBuf[idx + 1] : s0;
+                    slot.samples[i] = (int16_t)(s0 + frac * (s1 - s0));
+                }
+                free(readBuf);
+            }
+
+            slot.length = outSamples;
+            slot.sampleRate = SAMPLE_RATE;
             slot.occupied = true;
 
             const char* filename = strrchr(path, '/');
@@ -249,7 +288,8 @@ uint8_t Storage::loadProjectTheme(uint8_t slot) {
     FILE* f = fopen(path, "rb");
     if (!f) return 0;
     ProjectHeader hdr;
-    if (fread(&hdr, sizeof(hdr), 1, f) != 1) { fclose(f); return 0; }
+    memset(&hdr, 0, sizeof(hdr));
+    fread(&hdr, 1, sizeof(hdr), f);
     fclose(f);
     if (hdr.magic != PROJECT_MAGIC || hdr.version < 1 || hdr.version > PROJECT_VERSION) return 0;
     return hdr.themeIndex;
@@ -262,10 +302,24 @@ bool Storage::saveProjectTheme(uint8_t slot, uint8_t themeIndex) {
     FILE* f = fopen(path, "rb");
     if (!f) return false;
     ProjectHeader hdr;
-    if (fread(&hdr, sizeof(hdr), 1, f) != 1) { fclose(f); return false; }
+    memset(&hdr, 0, sizeof(hdr));
+    fseek(f, 0, SEEK_END);
+    size_t fileSize = ftell(f);
+    fseek(f, 0, SEEK_SET);
+    static const size_t fxFieldsSize = sizeof(hdr.fxValues) + sizeof(hdr.fxEnabled);
+    static const size_t fxFieldsOffset = offsetof(ProjectHeader, fxValues);
+    if (fileSize <= sizeof(hdr) - fxFieldsSize) {
+        uint8_t* p = (uint8_t*)&hdr;
+        fread(p, 1, fxFieldsOffset, f);
+        size_t remaining = fileSize - fxFieldsOffset;
+        fread(p + fxFieldsOffset + fxFieldsSize, 1, remaining, f);
+    } else {
+        fread(&hdr, sizeof(hdr), 1, f);
+    }
     fclose(f);
     if (hdr.magic != PROJECT_MAGIC || hdr.version < 1 || hdr.version > PROJECT_VERSION) return false;
     hdr.themeIndex = themeIndex;
+    hdr.version = PROJECT_VERSION;
     f = fopen(path, "wb");
     if (!f) return false;
     fwrite(&hdr, sizeof(hdr), 1, f);
@@ -280,11 +334,25 @@ bool Storage::saveProjectName(uint8_t slot, const char* name) {
     FILE* f = fopen(path, "rb");
     if (!f) return false;
     ProjectHeader hdr;
-    if (fread(&hdr, sizeof(hdr), 1, f) != 1) { fclose(f); return false; }
+    memset(&hdr, 0, sizeof(hdr));
+    fseek(f, 0, SEEK_END);
+    size_t fileSize = ftell(f);
+    fseek(f, 0, SEEK_SET);
+    static const size_t fxFieldsSize = sizeof(hdr.fxValues) + sizeof(hdr.fxEnabled);
+    static const size_t fxFieldsOffset = offsetof(ProjectHeader, fxValues);
+    if (fileSize <= sizeof(hdr) - fxFieldsSize) {
+        uint8_t* p = (uint8_t*)&hdr;
+        fread(p, 1, fxFieldsOffset, f);
+        size_t remaining = fileSize - fxFieldsOffset;
+        fread(p + fxFieldsOffset + fxFieldsSize, 1, remaining, f);
+    } else {
+        fread(&hdr, sizeof(hdr), 1, f);
+    }
     fclose(f);
     if (hdr.magic != PROJECT_MAGIC || hdr.version < 1 || hdr.version > PROJECT_VERSION) return false;
     strncpy(hdr.name, name, 8);
     hdr.name[8] = '\0';
+    hdr.version = PROJECT_VERSION;
     f = fopen(path, "wb");
     if (!f) return false;
     fwrite(&hdr, sizeof(hdr), 1, f);
@@ -299,7 +367,8 @@ uint16_t Storage::loadProjectBpm(uint8_t slot) {
     FILE* f = fopen(path, "rb");
     if (!f) return DEFAULT_BPM;
     ProjectHeader hdr;
-    if (fread(&hdr, sizeof(hdr), 1, f) != 1) { fclose(f); return DEFAULT_BPM; }
+    memset(&hdr, 0, sizeof(hdr));
+    fread(&hdr, 1, sizeof(hdr), f);
     fclose(f);
     if (hdr.magic != PROJECT_MAGIC || hdr.version < 1 || hdr.version > PROJECT_VERSION) return DEFAULT_BPM;
     return hdr.bpm;
@@ -313,7 +382,8 @@ void Storage::loadProjectName(uint8_t slot, char* buf, uint8_t len) {
     FILE* f = fopen(path, "rb");
     if (!f) return;
     ProjectHeader hdr;
-    if (fread(&hdr, sizeof(hdr), 1, f) != 1) { fclose(f); return; }
+    memset(&hdr, 0, sizeof(hdr));
+    fread(&hdr, 1, sizeof(hdr), f);
     fclose(f);
     if (hdr.magic != PROJECT_MAGIC || hdr.version < 1 || hdr.version > PROJECT_VERSION) return;
     strncpy(buf, hdr.name, len - 1);
@@ -381,6 +451,12 @@ bool Storage::saveProject(const Project& project, uint8_t slot) {
             strncpy(hdr.soundNames[i], project.sounds[i].name, 8);
             hdr.soundNames[i][8] = '\0';
         }
+        memcpy(hdr.fxValues[i], project.sounds[i].fx.value, NUM_FX);
+        uint8_t bits = 0;
+        for (int f2 = 0; f2 < NUM_FX; f2++) {
+            if (project.sounds[i].fx.enabled[f2]) bits |= (1 << f2);
+        }
+        hdr.fxEnabled[i] = bits;
     }
 
     fwrite(&hdr, sizeof(hdr), 1, f);
@@ -397,9 +473,22 @@ bool Storage::loadProject(Project& project, uint8_t slot) {
     if (!f) return false;
 
     ProjectHeader hdr;
-    if (fread(&hdr, sizeof(hdr), 1, f) != 1) {
-        fclose(f);
-        return false;
+    memset(&hdr, 0, sizeof(hdr));
+
+    fseek(f, 0, SEEK_END);
+    size_t fileSize = ftell(f);
+    fseek(f, 0, SEEK_SET);
+
+    static const size_t fxFieldsSize = sizeof(hdr.fxValues) + sizeof(hdr.fxEnabled);
+    static const size_t fxFieldsOffset = offsetof(ProjectHeader, fxValues);
+
+    if (fileSize <= sizeof(hdr) - fxFieldsSize) {
+        uint8_t* p = (uint8_t*)&hdr;
+        fread(p, 1, fxFieldsOffset, f);
+        size_t remaining = fileSize - fxFieldsOffset;
+        fread(p + fxFieldsOffset + fxFieldsSize, 1, remaining, f);
+    } else {
+        fread(&hdr, sizeof(hdr), 1, f);
     }
     fclose(f);
 
@@ -429,6 +518,14 @@ bool Storage::loadProject(Project& project, uint8_t slot) {
                 SoundSlotOps::setName(project.sounds[i], hdr.soundNames[i]);
                 project.sounds[i].level = hdr.soundLevels[i];
             }
+        }
+        if (hdr.version >= 2) {
+            memcpy(project.sounds[i].fx.value, hdr.fxValues[i], NUM_FX);
+            for (int f2 = 0; f2 < NUM_FX; f2++) {
+                project.sounds[i].fx.enabled[f2] = (hdr.fxEnabled[i] & (1 << f2)) != 0;
+            }
+        } else {
+            SlotFxOps::defaults(project.sounds[i].fx);
         }
     }
 
@@ -477,10 +574,12 @@ bool Storage::renderSongToWav(const Project& project, const char* path) {
     struct Voice {
         const int16_t* samples;
         uint32_t length;
-        uint32_t pos;
         uint32_t srcRate;
         uint8_t level;
         bool active;
+        SlotFx fx;
+        FxFilterState filterState;
+        double fracPos;
     };
     Voice voices[NUM_VOICES];
     memset(voices, 0, sizeof(voices));
@@ -503,7 +602,9 @@ bool Storage::renderSongToWav(const Project& project, const char* path) {
                 v.length = project.sounds[s].length;
                 v.srcRate = project.sounds[s].sampleRate;
                 v.level = project.sounds[s].level;
-                v.pos = 0;
+                v.fracPos = 0.0;
+                v.fx = project.sounds[s].fx;
+                FxDsp::initFilterState(v.filterState);
                 v.active = true;
                 nextVoice = (nextVoice + 1) % NUM_VOICES;
             }
@@ -518,18 +619,28 @@ bool Storage::renderSongToWav(const Project& project, const char* path) {
 
             for (int v = 0; v < NUM_VOICES; v++) {
                 if (!voices[v].active) continue;
+                double step = (double)voices[v].srcRate / SAMPLE_RATE;
+                if (voices[v].fx.enabled[FX_PITCH])
+                    step *= FxDsp::pitchRate(voices[v].fx.value[FX_PITCH]);
                 for (uint32_t i = 0; i < toRender; i++) {
-                    uint32_t srcPos = (uint32_t)((uint64_t)voices[v].pos * voices[v].srcRate / SAMPLE_RATE);
-                    if (srcPos >= voices[v].length) {
+                    uint32_t idx = (uint32_t)voices[v].fracPos;
+                    if (idx >= voices[v].length) {
                         voices[v].active = false;
                         break;
                     }
-                    int32_t sample = (int32_t)voices[v].samples[srcPos] * voices[v].level / 100;
+                    double frac = voices[v].fracPos - idx;
+                    int16_t s;
+                    if (idx + 1 < voices[v].length)
+                        s = (int16_t)(voices[v].samples[idx] * (1.0 - frac) + voices[v].samples[idx + 1] * frac);
+                    else
+                        s = voices[v].samples[idx];
+                    s = FxDsp::processSample(s, voices[v].fx.value, voices[v].fx.enabled, voices[v].filterState, (float)voices[v].srcRate);
+                    int32_t sample = (int32_t)s * voices[v].level / 100;
                     int32_t mixed = (int32_t)chunk[i] + sample;
                     if (mixed > 32767) mixed = 32767;
                     if (mixed < -32768) mixed = -32768;
                     chunk[i] = (int16_t)mixed;
-                    voices[v].pos++;
+                    voices[v].fracPos += step;
                 }
             }
 

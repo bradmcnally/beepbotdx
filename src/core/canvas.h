@@ -91,6 +91,38 @@ public:
         }
     }
 
+    void drawCircle(int cx, int cy, int r, uint16_t color) {
+        int x = r, y = 0, d = 1 - r;
+        while (x >= y) {
+            drawPixel(cx + x, cy + y, color);
+            drawPixel(cx - x, cy + y, color);
+            drawPixel(cx + x, cy - y, color);
+            drawPixel(cx - x, cy - y, color);
+            drawPixel(cx + y, cy + x, color);
+            drawPixel(cx - y, cy + x, color);
+            drawPixel(cx + y, cy - x, color);
+            drawPixel(cx - y, cy - x, color);
+            y++;
+            if (d <= 0) { d += 2 * y + 1; }
+            else { x--; d += 2 * (y - x) + 1; }
+        }
+    }
+
+    void drawLine(int x0, int y0, int x1, int y1, uint16_t color) {
+        int dx = x0 < x1 ? x1 - x0 : x0 - x1;
+        int sx = x0 < x1 ? 1 : -1;
+        int dy = -(y0 < y1 ? y1 - y0 : y0 - y1);
+        int sy = y0 < y1 ? 1 : -1;
+        int err = dx + dy;
+        while (true) {
+            drawPixel(x0, y0, color);
+            if (x0 == x1 && y0 == y1) break;
+            int e2 = 2 * err;
+            if (e2 >= dy) { err += dy; x0 += sx; }
+            if (e2 <= dx) { err += dx; y0 += sy; }
+        }
+    }
+
     void darken() {
         int total = _width * _height;
         for (int p = 0; p < total; p++) {

@@ -106,7 +106,7 @@ void PatternEditView::triggerSound(uint8_t sound) {
         _flashTime = millis();
         return;
     }
-    Audio::triggerSound(slot.samples, slot.length, slot.sampleRate, slot.level * 255 / 100);
+    Audio::triggerSound(slot.samples, slot.length, slot.sampleRate, slot.level * 255 / 100, &slot.fx);
     _character.setState(CHAR_BEAT);
     _character.say(slot.name);
     _flashSound = sound;

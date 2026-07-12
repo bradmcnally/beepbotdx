@@ -14,6 +14,7 @@ public:
     void exit() override;
 
     bool inTrim() const { return _subState == STATE_TRIM; }
+    bool inFx() const { return _subState == STATE_FX; }
     bool inSubView() const { return _subState != STATE_LIST; }
     bool inRename() const { return _subState == STATE_RENAME; }
     uint8_t getCursor() const { return _cursor; }
@@ -26,6 +27,7 @@ private:
         STATE_RECORDING,
         STATE_RECORD_DONE,
         STATE_TRIM,
+        STATE_FX,
         STATE_LOAD_BROWSER,
         STATE_RENAME,
     };
@@ -36,6 +38,7 @@ private:
     void updateRecording(InputEvent event);
     void updateRecordDone();
     void updateTrim(InputEvent event);
+    void updateFx(InputEvent event);
     void updateLoadBrowser(InputEvent event);
     void updateRename(InputEvent event);
 
@@ -45,6 +48,9 @@ private:
     void drawRecording(Canvas& canvas, const struct Theme& theme);
     void drawRecordDone(Canvas& canvas, const struct Theme& theme);
     void drawTrim(Canvas& canvas, const struct Theme& theme);
+    void drawFx(Canvas& canvas, const struct Theme& theme);
+    void drawKnob(Canvas& canvas, int cx, int cy, int r, uint8_t value,
+                  uint8_t maxVal, bool enabled, bool focused, const struct Theme& theme);
     void drawLoadBrowser(Canvas& canvas, const struct Theme& theme);
     void drawRename(Canvas& canvas, const struct Theme& theme);
 
@@ -68,6 +74,9 @@ private:
     uint32_t _trimStart;
     uint32_t _trimEnd;
     bool _trimMovingEnd;
+
+    // FX state
+    uint8_t _fxCursor;
 
     // Rename state
     char _renameBuffer[9];

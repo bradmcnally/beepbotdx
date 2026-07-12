@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include "slot_fx.h"
 
 struct SoundSlot {
     int16_t* samples;
@@ -9,6 +10,7 @@ struct SoundSlot {
     char name[9];
     uint8_t level; // 0-100 percent
     bool occupied;
+    SlotFx fx;
 };
 
 namespace SoundSlotOps {

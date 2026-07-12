@@ -8,8 +8,10 @@
 #include "core/timing.h"
 #include "core/bloom_field.h"
 #include "core/grid_layout.h"
+#include "core/slot_fx.h"
 #include "config.h"
 #include <cstring>
+#include <cmath>
 
 static uint8_t computeAudioLevel(const int16_t* samples, uint32_t totalLength) {
     if (!samples || totalLength == 0) return 0;
@@ -77,6 +79,7 @@ void SoundView::update(InputEvent event) {
         case STATE_RECORDING:    updateRecording(event); break;
         case STATE_RECORD_DONE:  updateRecordDone(); break;
         case STATE_TRIM:         updateTrim(event); break;
+        case STATE_FX:           updateFx(event); break;
         case STATE_LOAD_BROWSER: updateLoadBrowser(event); break;
         case STATE_RENAME:       updateRename(event); break;
     }
@@ -94,6 +97,7 @@ void SoundView::draw(Canvas& canvas) {
         case STATE_RECORDING:    drawRecording(canvas, theme); break;
         case STATE_RECORD_DONE:  drawRecordDone(canvas, theme); break;
         case STATE_TRIM:         drawTrim(canvas, theme); break;
+        case STATE_FX:           drawFx(canvas, theme); break;
         case STATE_LOAD_BROWSER: drawLoadBrowser(canvas, theme); break;
         case STATE_RENAME:       drawRename(canvas, theme); break;
     }
@@ -164,6 +168,17 @@ void SoundView::updateList(InputEvent event) {
                 _renameBuffer[8] = '\0';
                 _renameLen = strlen(_renameBuffer);
                 _subState = STATE_RENAME;
+                _character.setState(CHAR_FOCUSED);
+            } else if (ch == 'f' && _project.sounds[_cursor].occupied) {
+                _fxCursor = 0;
+                _subState = STATE_FX;
+                _character.setState(CHAR_FOCUSED);
+            } else if (ch == 't' && _project.sounds[_cursor].occupied) {
+                SoundSlot& slot = _project.sounds[_cursor];
+                _trimStart = 0;
+                _trimEnd = slot.length;
+                _trimMovingEnd = false;
+                _subState = STATE_TRIM;
                 _character.setState(CHAR_FOCUSED);
             } else if (ch == 'i') {
                 _fileCursor = 0;
@@ -296,6 +311,79 @@ void SoundView::updateTrim(InputEvent event) {
             _subState = STATE_LIST;
             _character.setState(CHAR_IDLE);
             break;
+        case INPUT_CHAR: {
+            char ch = Input::getChar();
+            if (ch == 'f') {
+                _fxCursor = 0;
+                _subState = STATE_FX;
+                _character.setState(CHAR_FOCUSED);
+            }
+            break;
+        }
+        default:
+            break;
+    }
+}
+
+void SoundView::updateFx(InputEvent event) {
+    SoundSlot& slot = _project.sounds[_cursor];
+    switch (event) {
+        case INPUT_LEFT:
+            if (_fxCursor > 0) _fxCursor--;
+            break;
+        case INPUT_RIGHT:
+            if (_fxCursor < NUM_FX - 1) _fxCursor++;
+            break;
+        case INPUT_UP: {
+            uint8_t step = (_fxCursor == FX_PITCH) ? 1 : 5;
+            uint8_t max = SlotFxOps::maxValue(_fxCursor);
+            if (slot.fx.value[_fxCursor] < max) {
+                uint8_t v = slot.fx.value[_fxCursor] + step;
+                slot.fx.value[_fxCursor] = (v > max) ? max : v;
+                slot.fx.enabled[_fxCursor] = true;
+                _project.dirty = true;
+            }
+            break;
+        }
+        case INPUT_DOWN: {
+            uint8_t step = (_fxCursor == FX_PITCH) ? 1 : 5;
+            if (slot.fx.value[_fxCursor] > 0) {
+                uint8_t v = slot.fx.value[_fxCursor];
+                slot.fx.value[_fxCursor] = (v >= step) ? v - step : 0;
+                slot.fx.enabled[_fxCursor] = true;
+                _project.dirty = true;
+            }
+            break;
+        }
+        case INPUT_ENTER:
+            slot.fx.enabled[_fxCursor] = !slot.fx.enabled[_fxCursor];
+            _project.dirty = true;
+            break;
+        case INPUT_SPACE:
+            Audio::triggerSound(slot.samples, slot.length, slot.sampleRate,
+                               slot.level * 255 / 100, &slot.fx);
+            _character.setState(CHAR_BEAT);
+            break;
+        case INPUT_BACK:
+            slot.fx.value[_fxCursor] = SlotFxOps::defaultValue(_fxCursor);
+            slot.fx.enabled[_fxCursor] = true;
+            _project.dirty = true;
+            break;
+        case INPUT_ESC:
+            _subState = STATE_LIST;
+            _character.setState(CHAR_IDLE);
+            break;
+        case INPUT_CHAR: {
+            char ch = Input::getChar();
+            if (ch == 't') {
+                _trimStart = 0;
+                _trimEnd = slot.length;
+                _trimMovingEnd = false;
+                _subState = STATE_TRIM;
+                _character.setState(CHAR_FOCUSED);
+            }
+            break;
+        }
         default:
             break;
     }
@@ -429,6 +517,11 @@ void SoundView::drawList(Canvas& canvas, const Theme& theme) {
         char numStr[4];
         snprintf(numStr, sizeof(numStr), "%02d", i + 1);
         canvas.drawString(numStr, x + 4, y + 4);
+        if (occupied && SlotFxOps::anyActive(_project.sounds[i].fx)) {
+            canvas.setTextDatum(top_right);
+            canvas.drawString("FX", x + grid.cellW - 4, y + 4);
+            canvas.setTextDatum(top_left);
+        }
         if (occupied) canvas.drawString(_project.sounds[i].name, x + 4, y + 14);
     }
 
@@ -615,11 +708,7 @@ void SoundView::drawTrim(Canvas& canvas, const Theme& theme) {
 
     canvas.setTextColor(theme.accent);
     canvas.setTextDatum(top_left);
-    if (slot.name[0]) {
-        canvas.drawString(slot.name, hdrLeft + 4, infoY);
-    } else {
-        canvas.drawString("TRIM", hdrLeft + 4, infoY);
-    }
+    canvas.drawString("TRIM", hdrLeft + 4, infoY);
 
     char durStr[10];
     snprintf(durStr, sizeof(durStr), "%.2fs", durSec);
@@ -641,11 +730,161 @@ void SoundView::drawTrim(Canvas& canvas, const Theme& theme) {
     canvas.setTextDatum(top_left);
     canvas.drawString(startStr, hdrLeft + 4, waveBottom + 2);
 
+    canvas.setTextColor(theme.dim);
+    canvas.setTextDatum(top_center);
+    canvas.drawString("FX", hdrLeft + hdrContentW / 2, waveBottom + 2);
+    int fX = hdrLeft + hdrContentW / 2 - (2 * 6) / 2;
+    canvas.fillRect(fX, waveBottom + 2 + 8, 5, 1, theme.dim);
+
     char endStr[10];
     snprintf(endStr, sizeof(endStr), "%.2fs", endSec);
     canvas.setTextColor(_trimMovingEnd ? theme.accent : theme.dim);
     canvas.setTextDatum(top_right);
     canvas.drawString(endStr, hdrLeft + hdrContentW - 4, waveBottom + 2);
+}
+
+void SoundView::drawFx(Canvas& canvas, const Theme& theme) {
+    SoundSlot& slot = _project.sounds[_cursor];
+
+    const int margin = 3;
+    const int hdrGridW = SCREEN_WIDTH - margin * 2;
+    const int hdrCellW = (hdrGridW - margin * 3) / 4;
+    const int hdrContentW = hdrCellW * 4 + margin * 3;
+    const int hdrLeft = margin + (hdrGridW - hdrContentW) / 2;
+    const int infoY = 23;
+
+    canvas.setTextColor(theme.accent);
+    canvas.setTextSize(1);
+    canvas.setTextDatum(top_left);
+    canvas.drawString("FX", hdrLeft + 4, infoY);
+
+    char lvlStr[8];
+    snprintf(lvlStr, sizeof(lvlStr), "LVL:%d", slot.level);
+    canvas.setTextDatum(top_right);
+    canvas.drawString(lvlStr, hdrLeft + hdrContentW - 4, infoY);
+
+    static const char* labels[NUM_FX] = {"PITCH", "CRUSH", "LPF", "HPF"};
+    GridLayout grid = GridLayout::make(4, 1, 34);
+    grid.cellH -= 12;
+
+    for (int i = 0; i < NUM_FX; i++) {
+        int x, y;
+        grid.cellXY(i, x, y);
+        bool focused = (i == _fxCursor);
+        bool enabled = slot.fx.enabled[i];
+
+        uint16_t bgColor = focused ? theme.accent : theme.dark;
+        canvas.fillRect(x, y, grid.cellW, grid.cellH, bgColor);
+
+        // Label top-left of tile
+        uint16_t textColor;
+        if (focused) textColor = enabled ? theme.textOnAccent : theme.dim;
+        else textColor = enabled ? theme.accent : theme.dim;
+        canvas.setTextColor(textColor);
+        canvas.setTextDatum(top_left);
+        canvas.drawString(labels[i], x + 4, y + 4);
+
+        // Value below label
+        char valStr[8];
+        if (i == FX_PITCH) {
+            int semi = (int)slot.fx.value[i] - 12;
+            if (semi > 0) snprintf(valStr, sizeof(valStr), "+%d", semi);
+            else snprintf(valStr, sizeof(valStr), "%d", semi);
+        } else {
+            snprintf(valStr, sizeof(valStr), "%d", slot.fx.value[i]);
+        }
+        canvas.drawString(valStr, x + 4, y + 14);
+
+        // Knob centered in available space below text
+        int knobR = (grid.cellW >= 70) ? 25 : 16;
+        int knobTop = y + 24;
+        int knobBot = y + grid.cellH;
+        int cx = x + grid.cellW / 2;
+        int cy = knobTop + (knobBot - knobTop) / 2;
+        drawKnob(canvas, cx, cy, knobR, slot.fx.value[i], SlotFxOps::maxValue(i), enabled, focused, theme);
+    }
+
+    const int footerY = SCREEN_HEIGHT - 12;
+    canvas.setTextSize(1);
+    canvas.setTextColor(theme.dim);
+    canvas.setTextDatum(top_left);
+    canvas.drawString("TOGGLE:OK", hdrLeft + 4, footerY);
+    canvas.setTextDatum(top_center);
+    canvas.drawString("TRIM", hdrLeft + hdrContentW / 2, footerY);
+    int tX = hdrLeft + hdrContentW / 2 - (4 * 6) / 2;
+    canvas.fillRect(tX, footerY + 8, 5, 1, theme.dim);
+    canvas.setTextDatum(top_right);
+    canvas.drawString("RESET:DEL", hdrLeft + hdrContentW - 4, footerY);
+}
+
+void SoundView::drawKnob(Canvas& canvas, int cx, int cy, int r,
+                          uint8_t value, uint8_t maxVal, bool enabled, bool focused,
+                          const Theme& theme) {
+    int scale = r >= 24 ? 3 : 2;
+    const float startAngle = 2.356f;  // 135 deg (7 o'clock)
+    const float endAngle = 7.069f;    // 405 deg (5 o'clock)
+    const float sweep = endAngle - startAngle;
+
+    float angle = startAngle + ((float)value / maxVal) * sweep;
+
+    uint16_t ringColor, dotColor;
+    if (focused) {
+        ringColor = enabled ? theme.textOnAccent : theme.dim;
+        dotColor = ringColor;
+    } else if (enabled) {
+        ringColor = theme.accent;
+        dotColor = theme.accent;
+    } else {
+        ringColor = theme.dim;
+        dotColor = theme.dim;
+    }
+
+    // Draw at half res (17x17) then blit at 2x for chunky pixels
+    const int hr = 7;  // radius in half-res space
+    const int sz = 17;
+    const int ctr = 8; // true center pixel
+    uint8_t buf[17][17] = {};  // 0=bg, 1=ring, 2=indicator
+
+    // Ring (midpoint circle at half res, 2px thick)
+    for (int tr = hr; tr >= hr - 1; tr--) {
+        int px = tr, py = 0, d = 1 - tr;
+        while (px >= py) {
+            buf[ctr + py][ctr + px] = 1; buf[ctr - py][ctr + px] = 1;
+            buf[ctr + py][ctr - px] = 1; buf[ctr - py][ctr - px] = 1;
+            buf[ctr + px][ctr + py] = 1; buf[ctr - px][ctr + py] = 1;
+            buf[ctr + px][ctr - py] = 1; buf[ctr - px][ctr - py] = 1;
+            py++;
+            if (d <= 0) { d += 2 * py + 1; }
+            else { px--; d += 2 * (py - px) + 1; }
+        }
+    }
+
+    // Indicator line (1px wide, from r=4 to r=7)
+    float cosA = cosf(angle);
+    float sinA = sinf(angle);
+    int innerR = hr - 3;
+    for (int d = innerR; d <= hr; d++) {
+        int px1 = ctr + (int)(d * cosA);
+        int py1 = ctr + (int)(d * sinA);
+        if (px1 >= 0 && px1 < sz && py1 >= 0 && py1 < sz)
+            buf[py1][px1] = 2;
+    }
+
+    // Blit at scale (17x17 -> scaled output)
+    int halfOut = (sz * scale) / 2;
+    int ox = cx - halfOut;
+    int oy = cy - halfOut;
+    for (int py2 = 0; py2 < sz; py2++) {
+        for (int px2 = 0; px2 < sz; px2++) {
+            if (buf[py2][px2] == 0) continue;
+            uint16_t c = (buf[py2][px2] == 2) ? dotColor : ringColor;
+            int dx = ox + px2 * scale;
+            int dy = oy + py2 * scale;
+            for (int sy = 0; sy < scale; sy++)
+                for (int sx = 0; sx < scale; sx++)
+                    canvas.drawPixel(dx + sx, dy + sy, c);
+        }
+    }
 }
 
 void SoundView::drawLoadBrowser(Canvas& canvas, const Theme& theme) {
@@ -836,7 +1075,7 @@ void SoundView::triggerSlot(uint8_t index) {
         _character.say("empty");
         return;
     }
-    Audio::triggerSound(slot.samples, slot.length, slot.sampleRate, slot.level * 255 / 100);
+    Audio::triggerSound(slot.samples, slot.length, slot.sampleRate, slot.level * 255 / 100, &slot.fx);
     _character.setState(CHAR_BEAT);
     _flashSlot = index;
     _flashTime = millis();

@@ -1,6 +1,8 @@
 #include <M5Cardputer.h>
 #include "audio.h"
 #include "config.h"
+#include "core/slot_fx.h"
+#include "core/fx_dsp.h"
 
 static const uint32_t REC_CHUNK = 1024;
 static int16_t _recChunk[REC_CHUNK];
@@ -86,10 +88,40 @@ uint32_t Audio::getRecordedLength() {
     return _recOffset;
 }
 
-void Audio::triggerSound(const int16_t* buffer, uint32_t length, uint32_t sampleRate, uint8_t volume) {
+void Audio::triggerSound(const int16_t* buffer, uint32_t length, uint32_t sampleRate, uint8_t volume, const SlotFx* fx) {
     if (!buffer || length == 0) return;
     M5Cardputer.Speaker.setChannelVolume(_nextChannel, volume);
-    M5Cardputer.Speaker.playRaw(buffer, length, sampleRate, false, 1, _nextChannel);
+
+    if (fx && FxDsp::hasActiveFx(*fx)) {
+        float pitchMult = fx->enabled[FX_PITCH] ? FxDsp::pitchRate(fx->value[FX_PITCH]) : 1.0f;
+        uint32_t outLength = (uint32_t)(length / pitchMult);
+        uint32_t maxOut = MAX_SAMPLE_LENGTH;
+        if (outLength > maxOut) outLength = maxOut;
+
+        int16_t* fxBuf = (int16_t*)malloc(outLength * sizeof(int16_t));
+        if (fxBuf) {
+            FxFilterState state;
+            FxDsp::initFilterState(state);
+            float pos = 0.0f;
+            for (uint32_t i = 0; i < outLength; i++) {
+                uint32_t idx = (uint32_t)pos;
+                float frac = pos - idx;
+                int16_t s0 = buffer[idx];
+                int16_t s1 = (idx + 1 < length) ? buffer[idx + 1] : s0;
+                int16_t raw = (int16_t)(s0 + frac * (s1 - s0));
+                fxBuf[i] = FxDsp::processSample(raw, fx->value, fx->enabled, state, (float)sampleRate);
+                pos += pitchMult;
+                if ((uint32_t)pos >= length) { outLength = i + 1; break; }
+            }
+            M5Cardputer.Speaker.playRaw(fxBuf, outLength, sampleRate, false, 1, _nextChannel);
+            free(fxBuf);
+        } else {
+            M5Cardputer.Speaker.playRaw(buffer, length, sampleRate, false, 1, _nextChannel);
+        }
+    } else {
+        M5Cardputer.Speaker.playRaw(buffer, length, sampleRate, false, 1, _nextChannel);
+    }
+
     _nextChannel = (_nextChannel + 1) % NUM_VOICES;
 }
 

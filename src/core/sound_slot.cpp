@@ -15,6 +15,7 @@ void SoundSlotOps::init(SoundSlot& slot) {
     slot.name[0] = '\0';
     slot.level = 100;
     slot.occupied = false;
+    SlotFxOps::defaults(slot.fx);
 }
 
 bool SoundSlotOps::allocate(SoundSlot& slot, uint32_t maxLength) {
@@ -35,6 +36,7 @@ bool SoundSlotOps::allocate(SoundSlot& slot, uint32_t maxLength) {
     slot.sampleRate = SAMPLE_RATE;
     slot.level = 100;
     slot.occupied = false;
+    SlotFxOps::defaults(slot.fx);
     return true;
 }
 
