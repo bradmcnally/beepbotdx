@@ -8,9 +8,16 @@
 #include <cstdlib>
 #endif
 
+#ifndef NATIVE_TEST
+#include "platform/memory.h"
+#else
+namespace Memory { void trackAlloc(uint32_t) {} void trackFree(uint32_t) {} }
+#endif
+
 void SoundSlotOps::init(SoundSlot& slot) {
     slot.samples = nullptr;
     slot.length = 0;
+    slot.allocLength = 0;
     slot.sampleRate = SAMPLE_RATE;
     slot.name[0] = '\0';
     slot.level = 100;
@@ -31,8 +38,10 @@ bool SoundSlotOps::allocate(SoundSlot& slot, uint32_t maxLength) {
 
     if (!slot.samples) return false;
 
+    Memory::trackAlloc(bytes);
     memset(slot.samples, 0, bytes);
     slot.length = 0;
+    slot.allocLength = maxLength;
     slot.sampleRate = SAMPLE_RATE;
     slot.level = 100;
     slot.occupied = false;
@@ -61,12 +70,16 @@ bool SoundSlotOps::shrinkToFit(SoundSlot& slot) {
     ::free(slot.samples);
 #endif
 
+    Memory::trackFree(slot.allocLength * sizeof(int16_t));
+    Memory::trackAlloc(bytes);
     slot.samples = newBuf;
+    slot.allocLength = slot.length;
     return true;
 }
 
 void SoundSlotOps::free(SoundSlot& slot) {
     if (slot.samples) {
+        Memory::trackFree(slot.allocLength * sizeof(int16_t));
 #if !defined(NATIVE_TEST) && !defined(DESKTOP_BUILD)
         heap_caps_free(slot.samples);
 #else
@@ -75,6 +88,7 @@ void SoundSlotOps::free(SoundSlot& slot) {
         slot.samples = nullptr;
     }
     slot.length = 0;
+    slot.allocLength = 0;
     slot.occupied = false;
 }
 

@@ -17,6 +17,7 @@ public:
     bool inFx() const { return _subState == STATE_FX; }
     bool inSubView() const { return _subState != STATE_LIST; }
     bool inRename() const { return _subState == STATE_RENAME; }
+    bool inProjectInfo() const { return _subState == STATE_PROJECT_INFO; }
     uint8_t getCursor() const { return _cursor; }
 
 private:
@@ -98,7 +99,6 @@ private:
     uint32_t _recordDoneTime;
     uint32_t _recordMaxLength;
     uint8_t _infoCursor;
-    int _infoScroll;
 
     // Audition flash
     uint8_t _flashSlot;

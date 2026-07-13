@@ -480,7 +480,9 @@ void App::drawHeader(Canvas& canvas, const Theme& theme) {
     char titleBuf[16];
     switch (_currentScreen) {
         case SCREEN_SOUND:
-            if (_soundView.inSubView()) {
+            if (_soundView.inProjectInfo()) {
+                title = "PROJECT";
+            } else if (_soundView.inSubView()) {
                 SoundSlot& s = _project.sounds[_soundView.getCursor()];
                 if (s.name[0]) {
                     title = s.name;

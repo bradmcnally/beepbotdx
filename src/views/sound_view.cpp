@@ -46,7 +46,6 @@ SoundView::SoundView(Project& project, Character& character)
     _confirmingDelete = false;
     _recordMaxLength = MAX_SAMPLE_LENGTH;
     _infoCursor = 0;
-    _infoScroll = 0;
 }
 
 void SoundView::enter() {
@@ -197,7 +196,6 @@ void SoundView::updateList(InputEvent event) {
                 }
             } else if (ch == 'q') {
                 _infoCursor = 0;
-                _infoScroll = 0;
                 _subState = STATE_PROJECT_INFO;
             }
             break;
@@ -1141,26 +1139,20 @@ void SoundView::updateProjectInfo(InputEvent event) {
 }
 
 void SoundView::drawProjectInfo(Canvas& canvas, const struct Theme& theme) {
-    canvas.fillScreen(TFT_BLACK);
     canvas.setTextSize(1);
     canvas.setTextDatum(top_left);
 
     const int lineH = 14;
     const int startY = 24;
+    const int listTop = startY + 4;
+    const int listBottom = SCREEN_HEIGHT - 4;
+    const int visibleItems = (listBottom - listTop) / lineH;
     const int labelX = 7;
     const int valueX = 140;
-    const int sectionGap = 10;
 
-    // Auto-scroll to keep cursor visible
-    if (_infoCursor < _infoScroll) _infoScroll = _infoCursor;
-    while (_infoScroll < _infoCursor) {
-        int y = startY;
-        for (int i = _infoScroll; i <= _infoCursor; i++) {
-            if (i == INFO_NUM_SETTINGS && i > _infoScroll) y += sectionGap;
-            y += lineH;
-        }
-        if (y <= SCREEN_HEIGHT - 4) break;
-        _infoScroll++;
+    int scrollOffset = 0;
+    if (_infoCursor >= visibleItems) {
+        scrollOffset = _infoCursor - visibleItems + 1;
     }
 
     // Data
@@ -1172,16 +1164,12 @@ void SoundView::drawProjectInfo(Canvas& canvas, const struct Theme& theme) {
         if (_project.sounds[i].occupied)
             usedBytes += _project.sounds[i].length * bytesPerSample;
     }
-    float usedSecs = (float)usedBytes / (SAMPLE_RATE * bytesPerSample);
 
     char buf[40];
 
     // Draw rows
-    int y = startY;
-    for (int i = _infoScroll; i < INFO_TOTAL_ROWS; i++) {
-        if (i == INFO_NUM_SETTINGS && i > _infoScroll) y += sectionGap;
-        if (y >= SCREEN_HEIGHT - 4) break;
-
+    for (int i = scrollOffset; i < INFO_TOTAL_ROWS && (i - scrollOffset) < visibleItems; i++) {
+        int y = listTop + (i - scrollOffset) * lineH;
         bool selected = (i == _infoCursor);
 
         if (i < INFO_NUM_SETTINGS) {
@@ -1201,7 +1189,7 @@ void SoundView::drawProjectInfo(Canvas& canvas, const struct Theme& theme) {
                 canvas.drawString(value, valueX, y);
             }
         } else if (i == INFO_NUM_SETTINGS) {
-            // Memory summary row (first slot row position)
+            // Memory summary row
             canvas.setTextColor(theme.dim);
             snprintf(buf, sizeof(buf), "%luKB/%luKB  %.1fs remaining",
                 (unsigned long)(usedBytes / 1024), (unsigned long)((usedBytes + available) / 1024), availSecs);
@@ -1226,18 +1214,16 @@ void SoundView::drawProjectInfo(Canvas& canvas, const struct Theme& theme) {
                 canvas.drawString(buf, labelX, y);
             }
         }
-
-        y += lineH;
     }
 
     // Scrollbar
-    if (INFO_TOTAL_ROWS > _infoScroll + (SCREEN_HEIGHT - startY) / lineH) {
-        int barX = SCREEN_WIDTH - 3;
-        int totalH = INFO_TOTAL_ROWS * lineH + sectionGap;
-        int barH = SCREEN_HEIGHT * SCREEN_HEIGHT / totalH;
-        if (barH < 8) barH = 8;
-        int maxScroll = INFO_TOTAL_ROWS - 1;
-        int barY = maxScroll > 0 ? _infoScroll * (SCREEN_HEIGHT - barH) / maxScroll : 0;
-        canvas.fillRect(barX, barY, 2, barH, theme.dim);
+    if (INFO_TOTAL_ROWS > visibleItems) {
+        int maxScroll = INFO_TOTAL_ROWS - visibleItems;
+        const int trackTop = listTop;
+        const int trackH = listBottom - listTop;
+        int thumbH = trackH * visibleItems / INFO_TOTAL_ROWS;
+        if (thumbH < 6) thumbH = 6;
+        int thumbY = trackTop + (trackH - thumbH) * scrollOffset / maxScroll;
+        canvas.fillRect(SCREEN_WIDTH - 7, thumbY, 3, thumbH, theme.accent);
     }
 }

@@ -2,7 +2,11 @@
 
 // Audio
 #define SAMPLE_RATE 16000
-#define MAX_SAMPLE_LENGTH 32000  // 2.0s at 16kHz
+#ifdef DESKTOP_BUILD
+#define MAX_SAMPLE_LENGTH 160000  // 10.0s at 16kHz
+#else
+#define MAX_SAMPLE_LENGTH 32000   // 2.0s at 16kHz
+#endif
 #define NUM_VOICES 8
 #define SPEAKER_VOLUME 200
 

@@ -17,3 +17,6 @@ uint32_t Memory::getFree() {
     uint32_t freeHeap = ESP.getFreeHeap();
     return freeHeap > 30000 ? freeHeap - 30000 : 0;
 }
+
+void Memory::trackAlloc(uint32_t bytes) { (void)bytes; }
+void Memory::trackFree(uint32_t bytes) { (void)bytes; }

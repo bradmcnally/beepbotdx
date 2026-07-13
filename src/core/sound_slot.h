@@ -6,6 +6,7 @@
 struct SoundSlot {
     int16_t* samples;
     uint32_t length;
+    uint32_t allocLength;
     uint32_t sampleRate;
     char name[9];
     uint8_t level; // 0-100 percent
