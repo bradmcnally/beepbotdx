@@ -129,6 +129,7 @@ InputEvent Input::poll() {
             }
 
             if (key == 'b' && bHeld) continue;
+            if (key == 'l' && lHeld) continue;
             if (key == 'n' && nHeld) continue;
 
             lastArrowKey = 0;

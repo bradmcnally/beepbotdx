@@ -305,6 +305,15 @@ bool Storage::listWavFiles(const char* dir, char names[][32], uint8_t& count, ui
     }
 
     root.close();
+
+    // Reverse so newest files appear first
+    for (int i = 0; i < count / 2; i++) {
+        char tmp[32];
+        memcpy(tmp, names[i], 32);
+        memcpy(names[i], names[count - 1 - i], 32);
+        memcpy(names[count - 1 - i], tmp, 32);
+    }
+
     return true;
 }
 

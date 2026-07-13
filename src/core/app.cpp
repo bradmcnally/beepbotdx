@@ -555,11 +555,11 @@ void App::drawHelp(Canvas& canvas, const Theme& theme) {
     };
     static const HelpLine trimHelp[] = {
         {"L/R", "Adjust point"}, {"U/D", "Switch start/end"}, {"SPACE", "Audition"},
-        {"+/-", "Volume"}, {"CTRL/OK", "Apply"}, {"ESC", "Cancel"},
+        {"L +/-", "Level"}, {"CTRL/OK", "Apply"}, {"ESC", "Cancel"},
     };
     static const HelpLine fxHelp[] = {
         {"L/R", "Select FX"}, {"U/D", "Adjust value"}, {"CTRL/OK", "Toggle on/off"},
-        {"SPACE", "Audition"}, {"DEL", "Reset"}, {"ESC", "Back"},
+        {"SPACE", "Audition"}, {"L +/-", "Level"}, {"DEL", "Reset"}, {"ESC", "Back"},
     };
     static const HelpLine patSelectHelp[] = {
         {"CTRL/OK", "Edit"}, {"SPACE", "Audition"}, {"DEL", "Clear"},
@@ -591,7 +591,7 @@ void App::drawHelp(Canvas& canvas, const Theme& theme) {
             if (_soundView.inTrim()) {
                 lines = trimHelp; lineCount = 6; screenTitle = "TRIM"; showGlobals = false;
             } else if (_soundView.inFx()) {
-                lines = fxHelp; lineCount = 6; screenTitle = "FX"; showGlobals = false;
+                lines = fxHelp; lineCount = 7; screenTitle = "FX"; showGlobals = false;
             } else {
                 lines = soundHelp; lineCount = 8; screenTitle = "SOUND";
             }

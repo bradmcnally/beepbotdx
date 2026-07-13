@@ -76,6 +76,7 @@ Navigation uses a tab menu (hold TAB + arrows or tap to cycle). Press **H** on a
 | U/D | Switch between start/end point |
 | SPACE | Audition |
 | +/- | Volume |
+| L +/- | Level |
 | CTRL/OK | Apply |
 | ESC | Cancel |
 
@@ -125,10 +126,15 @@ Navigation uses a tab menu (hold TAB + arrows or tap to cycle). Press **H** on a
 
 Place WAV files for import in `/beepbotdx/samples/` on the SD card. Files should be 16kHz mono.
 
+## Memory & Samples
+
+The Cardputer ADV has ~127 KB available for samples — roughly **4 seconds total** shared across all 8 slots (16-bit mono @ 16kHz = 32 KB/s). Recording adapts to available memory, so shorter existing samples leave more room for new ones. Trim recordings and clear unused slots to free space. Press **Q** from the sound list to see memory usage per slot.
+
+The Cardputer Zero has significantly more memory and supports up to 10 seconds per sample.
+
 ## Known Issues
 
 - Brightness adjustment (N+/-) does not work
-- Memory is limited — trim recordings or clear unused slots to free space for new recordings
 
 ## Planned Features
 
