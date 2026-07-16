@@ -787,7 +787,7 @@ void SoundView::drawFx(Canvas& canvas, const Theme& theme) {
 
         // Label top-left of tile
         uint16_t textColor;
-        if (focused) textColor = enabled ? theme.textOnAccent : theme.dim;
+        if (focused) textColor = enabled ? TFT_BLACK : theme.dim;
         else textColor = enabled ? theme.accent : theme.dim;
         canvas.setTextColor(textColor);
         canvas.setTextDatum(top_left);
@@ -834,7 +834,7 @@ void SoundView::drawKnob(Canvas& canvas, int cx, int cy, int r,
 
     uint16_t ringColor, dotColor;
     if (focused) {
-        ringColor = enabled ? theme.textOnAccent : theme.dim;
+        ringColor = enabled ? TFT_BLACK : theme.dim;
         dotColor = ringColor;
     } else if (enabled) {
         ringColor = theme.accent;

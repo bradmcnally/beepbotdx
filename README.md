@@ -46,7 +46,7 @@ Record sounds with the built-in mic, import WAV files from SD, build patterns, a
 | CTRL/OK | Select/confirm |
 | 1-8 | Trigger sounds |
 
-Navigation uses a tab menu (hold TAB + arrows or tap to cycle). Press **H** on any screen for context-sensitive keyboard shortcuts. Press **G** for settings.
+Navigation uses a tab menu (hold TAB + arrows or tap to cycle). Press **H** on any screen for context-sensitive keyboard shortcuts. Press **G** for settings. Press **P** for project info.
 
 ![Menu](assets/menu.png)
 ![Help](assets/help.png)
@@ -128,7 +128,7 @@ Place WAV files for import in `/beepbotdx/samples/` on the SD card. Files should
 
 ## Memory & Samples
 
-The Cardputer ADV has ~127 KB available for samples — roughly **4 seconds total** shared across all 8 slots (16-bit mono @ 16kHz = 32 KB/s). Recording adapts to available memory, so shorter existing samples leave more room for new ones. Trim recordings and clear unused slots to free space. Press **Q** from the sound list to see memory usage per slot.
+The Cardputer ADV has ~127 KB available for samples — roughly **4 seconds total** shared across all 8 slots (16-bit mono @ 16kHz = 32 KB/s). Recording adapts to available memory, so shorter existing samples leave more room for new ones. Trim recordings and clear unused slots to free space. Press **P** from any screen to see memory usage per slot.
 
 The Cardputer Zero has significantly more memory and supports up to 10 seconds per sample.
 

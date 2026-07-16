@@ -239,8 +239,8 @@ void App::handleGlobalInput(InputEvent& event) {
         return;
     }
 
-    // Q key opens project info
-    if (event == INPUT_CHAR && Input::getChar() == 'q'
+    // P key opens project info
+    if (event == INPUT_CHAR && Input::getChar() == 'p'
         && _currentScreen != SCREEN_PROJECT
         && _currentScreen != SCREEN_PROJECT_INFO) {
         _screenBeforeProjectInfo = _currentScreen;
