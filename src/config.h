@@ -36,4 +36,4 @@
 #define SD_SPI_CS 12
 
 // Features
-#define ENABLE_SCREENSHOTS 0
+#define ENABLE_SCREENSHOTS 1

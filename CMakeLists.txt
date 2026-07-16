@@ -42,6 +42,7 @@ set(VIEW_SOURCES
     src/views/play_view.cpp
     src/views/project_view.cpp
     src/views/settings_view.cpp
+    src/views/project_info_view.cpp
 )
 
 set(PLATFORM_SOURCES

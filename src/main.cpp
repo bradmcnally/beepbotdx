@@ -49,8 +49,7 @@ static void onSaveSettings(const GlobalSettings& settings) {
 
 static bool onScreenshot() {
 #if ENABLE_SCREENSHOTS
-    takeScreenshot();
-    return true;
+    return takeScreenshot();
 #else
     return false;
 #endif

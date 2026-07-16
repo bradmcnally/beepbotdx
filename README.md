@@ -1,4 +1,4 @@
-# beepbot dx
+# beepBot DX
 
 A tiny sampler and sequencer for M5Stack Cardputer/ADV/Zero.
 
@@ -6,12 +6,15 @@ Record sounds with the built-in mic, import WAV files from SD, build patterns, a
 
 ![Sound Slots](assets/sound_slots.png)
 ![Trim](assets/trim.png)
+![FX](assets/fx.png)
 ![Sequencer](assets/sequencer.png)
+![Playback 1](assets/play.png)
 
 ## Features
 
 - **8 projects** with color themes and renameable slots
 - **8 sound slots** — record hands-free, push-to-record, or import WAV from SD (16kHz mono, 2s max, trimmable)
+- **Per-slot FX** — pitch shift, bitcrush, low-pass and high-pass filters
 - **16-step sequencer** — 16 patterns, 8 tracks, 8-voice polyphony, copy/paste patterns
 - **Song mode** — chain up to 16 patterns
 - **Live play** — trigger sounds and patterns with playback visualization
@@ -22,7 +25,7 @@ Record sounds with the built-in mic, import WAV files from SD, build patterns, a
 
 ## Workflow
 
-1. Record or import sounds → trim to tighten
+1. Record or import sounds → trim to tighten → add effects
 2. Build patterns on the 16-step grid
 3. Chain patterns into a song
 4. Listen to the song and vibe with the visualization
@@ -46,11 +49,15 @@ Record sounds with the built-in mic, import WAV files from SD, build patterns, a
 | CTRL/OK | Select/confirm |
 | 1-8 | Trigger sounds |
 
-Navigation uses a tab menu (hold TAB + arrows or tap to cycle). Press **H** on any screen for context-sensitive keyboard shortcuts. Press **G** for settings. Press **P** for project info.
-
+Navigation uses a tab menu (hold TAB + arrows or tap to cycle).
+ 
 ![Menu](assets/menu.png)
+
+Press **H** on any screen for context-sensitive keyboard shortcuts. Press **G** for settings. Press **P** for project info.
+
 ![Help](assets/help.png)
 ![Help](assets/settings.png)
+![Help](assets/projectsettings.png)
 
 ### Sound
 ![Sounds](assets/sounds.png)
@@ -69,7 +76,6 @@ Navigation uses a tab menu (hold TAB + arrows or tap to cycle). Press **H** on a
 ### Trim
 ![Trim 1](assets/trim_1.png)
 ![Trim 2](assets/trim_2.png)
-![Trim 3](assets/trim_3.png)
 | Key | Action |
 |-----|--------|
 | L/R | Adjust trim point |
@@ -78,7 +84,21 @@ Navigation uses a tab menu (hold TAB + arrows or tap to cycle). Press **H** on a
 | +/- | Volume |
 | L +/- | Level |
 | CTRL/OK | Apply |
+| F | Switch to FX |
 | ESC | Cancel |
+
+### FX
+![FX](assets/fx.png)
+| Key | Action |
+|-----|--------|
+| L/R | Select effect |
+| U/D | Adjust value |
+| CTRL/OK | Toggle on/off |
+| SPACE | Audition |
+| DEL | Reset to default |
+| T | Switch to trim |
+| L +/- | Level |
+| ESC | Back |
 
 ### Pattern Select
 ![Pattern List](assets/pattern_list.png)
@@ -130,12 +150,12 @@ Place WAV files for import in `/beepbotdx/samples/` on the SD card. Files should
 
 The Cardputer ADV has ~127 KB available for samples — roughly **4 seconds total** shared across all 8 slots (16-bit mono @ 16kHz = 32 KB/s). Recording adapts to available memory, so shorter existing samples leave more room for new ones. Trim recordings and clear unused slots to free space. Press **P** from any screen to see memory usage per slot.
 
-The Cardputer Zero has significantly more memory and supports up to 10 seconds per sample.
+The Cardputer Zero has significantly more memory and  beepBot DX will support up to 10 seconds per sample.
 
 ## Planned Features
 
 - Swing
-- Per-slot sound parameters: pitch, bitcrush, low pass filter, high pass filter
+- 8-bit sample mode for longer recording time (4s -> 8s total)
 - More visualizations
 
 ![Zero](assets/beepbotdx_zero.png)
