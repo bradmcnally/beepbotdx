@@ -172,28 +172,8 @@ void ProjectView::update(InputEvent event) {
         case INPUT_SPACE:
             break;
         case INPUT_PLUS:
-            if (_cursor == _currentSlot) {
-                _project.themeIndex = (_project.themeIndex + 1) % ThemeOps::NUM_PRESETS;
-                _slotTheme[_currentSlot] = _project.themeIndex;
-                _project.dirty = true;
-                Storage::saveProjectTheme(_currentSlot, _project.themeIndex);
-                { uint8_t r, g, b; ThemeOps::getPresetRGB(_project.themeIndex, r, g, b); LED::setColor(r, g, b); }
-            } else if (_slotExists[_cursor]) {
-                _slotTheme[_cursor] = (_slotTheme[_cursor] + 1) % ThemeOps::NUM_PRESETS;
-                Storage::saveProjectTheme(_cursor, _slotTheme[_cursor]);
-            }
             break;
         case INPUT_MINUS:
-            if (_cursor == _currentSlot) {
-                _project.themeIndex = (_project.themeIndex + ThemeOps::NUM_PRESETS - 1) % ThemeOps::NUM_PRESETS;
-                _slotTheme[_currentSlot] = _project.themeIndex;
-                _project.dirty = true;
-                Storage::saveProjectTheme(_currentSlot, _project.themeIndex);
-                { uint8_t r, g, b; ThemeOps::getPresetRGB(_project.themeIndex, r, g, b); LED::setColor(r, g, b); }
-            } else if (_slotExists[_cursor]) {
-                _slotTheme[_cursor] = (_slotTheme[_cursor] + ThemeOps::NUM_PRESETS - 1) % ThemeOps::NUM_PRESETS;
-                Storage::saveProjectTheme(_cursor, _slotTheme[_cursor]);
-            }
             break;
         case INPUT_BACK:
             if (_slotExists[_cursor]) {

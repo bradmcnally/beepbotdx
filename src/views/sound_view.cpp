@@ -45,7 +45,6 @@ SoundView::SoundView(Project& project, Character& character)
     _playbackRate = SAMPLE_RATE;
     _confirmingDelete = false;
     _recordMaxLength = MAX_SAMPLE_LENGTH;
-    _infoCursor = 0;
 }
 
 void SoundView::enter() {
@@ -84,7 +83,6 @@ void SoundView::update(InputEvent event) {
         case STATE_FX:           updateFx(event); break;
         case STATE_LOAD_BROWSER: updateLoadBrowser(event); break;
         case STATE_RENAME:       updateRename(event); break;
-        case STATE_PROJECT_INFO: updateProjectInfo(event); break;
     }
 }
 
@@ -103,7 +101,6 @@ void SoundView::draw(Canvas& canvas) {
         case STATE_FX:           drawFx(canvas, theme); break;
         case STATE_LOAD_BROWSER: drawLoadBrowser(canvas, theme); break;
         case STATE_RENAME:       drawRename(canvas, theme); break;
-        case STATE_PROJECT_INFO: drawProjectInfo(canvas, theme); break;
     }
 }
 
@@ -194,9 +191,6 @@ void SoundView::updateList(InputEvent event) {
                 } else {
                     _character.setState(CHAR_ERROR);
                 }
-            } else if (ch == 'q') {
-                _infoCursor = 0;
-                _subState = STATE_PROJECT_INFO;
             }
             break;
         }
@@ -1103,131 +1097,3 @@ void SoundView::triggerSlot(uint8_t index) {
     _flashTime = millis();
 }
 
-static const uint8_t INFO_NUM_SETTINGS = 2;
-static const uint8_t INFO_TOTAL_ROWS = INFO_NUM_SETTINGS + 1 + NUM_SOUNDS;
-
-void SoundView::updateProjectInfo(InputEvent event) {
-    switch (event) {
-        case INPUT_UP:
-            if (_infoCursor > 0) _infoCursor--;
-            break;
-        case INPUT_DOWN:
-            if (_infoCursor < INFO_TOTAL_ROWS - 1) _infoCursor++;
-            break;
-        case INPUT_LEFT:
-            if (_infoCursor == 0) {
-                _project.themeIndex = (_project.themeIndex + ThemeOps::NUM_PRESETS - 1) % ThemeOps::NUM_PRESETS;
-                _project.dirty = true;
-            } else if (_infoCursor == 1) {
-                _project.bitDepth = (_project.bitDepth == BIT_DEPTH_16) ? BIT_DEPTH_8 : BIT_DEPTH_16;
-                _project.dirty = true;
-            }
-            break;
-        case INPUT_RIGHT:
-        case INPUT_ENTER:
-            if (_infoCursor == 0) {
-                _project.themeIndex = (_project.themeIndex + 1) % ThemeOps::NUM_PRESETS;
-                _project.dirty = true;
-            } else if (_infoCursor == 1) {
-                _project.bitDepth = (_project.bitDepth == BIT_DEPTH_16) ? BIT_DEPTH_8 : BIT_DEPTH_16;
-                _project.dirty = true;
-            }
-            break;
-        case INPUT_BACK:
-        case INPUT_ESC:
-            _subState = STATE_LIST;
-            break;
-        default:
-            break;
-    }
-}
-
-void SoundView::drawProjectInfo(Canvas& canvas, const struct Theme& theme) {
-    canvas.setTextSize(1);
-    canvas.setTextDatum(top_left);
-
-    const int lineH = 14;
-    const int startY = 24;
-    const int listTop = startY + 4;
-    const int listBottom = SCREEN_HEIGHT - 4;
-    const int visibleItems = (listBottom - listTop) / lineH;
-    const int labelX = 7;
-    const int valueX = 140;
-
-    int scrollOffset = 0;
-    if (_infoCursor >= visibleItems) {
-        scrollOffset = _infoCursor - visibleItems + 1;
-    }
-
-    // Data
-    uint8_t bytesPerSample = (_project.bitDepth == BIT_DEPTH_8) ? 1 : 2;
-    uint32_t available = Memory::getFree();
-    float availSecs = (float)available / (SAMPLE_RATE * bytesPerSample);
-    uint32_t usedBytes = 0;
-    for (int i = 0; i < NUM_SOUNDS; i++) {
-        if (_project.sounds[i].occupied)
-            usedBytes += _project.sounds[i].length * bytesPerSample;
-    }
-
-    char buf[40];
-
-    // Draw rows
-    for (int i = scrollOffset; i < INFO_TOTAL_ROWS && (i - scrollOffset) < visibleItems; i++) {
-        int y = listTop + (i - scrollOffset) * lineH;
-        bool selected = (i == _infoCursor);
-
-        if (i < INFO_NUM_SETTINGS) {
-            // Settings rows
-            const char* label = (i == 0) ? "COLOR" : "BIT DEPTH";
-            const char* value = (i == 0) ? ThemeOps::getPresetName(_project.themeIndex)
-                                         : ((_project.bitDepth == BIT_DEPTH_8) ? "8-BIT" : "16-BIT");
-
-            canvas.setTextColor(selected ? TFT_WHITE : theme.accent);
-            canvas.drawString(label, labelX, y);
-
-            canvas.setTextColor(selected ? TFT_WHITE : theme.dim);
-            if (selected) {
-                snprintf(buf, sizeof(buf), "< %s >", value);
-                canvas.drawString(buf, valueX - 12, y);
-            } else {
-                canvas.drawString(value, valueX, y);
-            }
-        } else if (i == INFO_NUM_SETTINGS) {
-            // Memory summary row
-            canvas.setTextColor(theme.dim);
-            snprintf(buf, sizeof(buf), "%luKB/%luKB  %.1fs remaining",
-                (unsigned long)(usedBytes / 1024), (unsigned long)((usedBytes + available) / 1024), availSecs);
-            canvas.drawString(buf, labelX, y);
-        } else {
-            // Slot rows
-            int slot = i - INFO_NUM_SETTINGS - 1;
-            if (_project.sounds[slot].occupied) {
-                float secs = (float)_project.sounds[slot].length / SAMPLE_RATE;
-                uint32_t kb = (_project.sounds[slot].length * bytesPerSample) / 1024;
-                canvas.setTextColor(selected ? TFT_WHITE : theme.accent);
-                snprintf(buf, sizeof(buf), "%d. %-8s", slot + 1, _project.sounds[slot].name);
-                canvas.drawString(buf, labelX, y);
-                canvas.setTextColor(selected ? TFT_WHITE : theme.dim);
-                snprintf(buf, sizeof(buf), "%.2fs", secs);
-                canvas.drawString(buf, 120, y);
-                snprintf(buf, sizeof(buf), "%luKB", (unsigned long)kb);
-                canvas.drawString(buf, 180, y);
-            } else {
-                canvas.setTextColor(selected ? TFT_WHITE : theme.dim);
-                snprintf(buf, sizeof(buf), "%d. --", slot + 1);
-                canvas.drawString(buf, labelX, y);
-            }
-        }
-    }
-
-    // Scrollbar
-    if (INFO_TOTAL_ROWS > visibleItems) {
-        int maxScroll = INFO_TOTAL_ROWS - visibleItems;
-        const int trackTop = listTop;
-        const int trackH = listBottom - listTop;
-        int thumbH = trackH * visibleItems / INFO_TOTAL_ROWS;
-        if (thumbH < 6) thumbH = 6;
-        int thumbY = trackTop + (trackH - thumbH) * scrollOffset / maxScroll;
-        canvas.fillRect(SCREEN_WIDTH - 7, thumbY, 3, thumbH, theme.accent);
-    }
-}

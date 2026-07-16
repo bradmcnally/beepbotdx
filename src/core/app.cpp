@@ -239,6 +239,16 @@ void App::handleGlobalInput(InputEvent& event) {
         return;
     }
 
+    // Q key opens project info
+    if (event == INPUT_CHAR && Input::getChar() == 'q'
+        && _currentScreen != SCREEN_PROJECT
+        && _currentScreen != SCREEN_PROJECT_INFO) {
+        _screenBeforeProjectInfo = _currentScreen;
+        switchScreen(SCREEN_PROJECT_INFO);
+        event = INPUT_NONE;
+        return;
+    }
+
     // M key cycles LED mode
     if (event == INPUT_CHAR && Input::getChar() == 'm'
         && _currentScreen != SCREEN_SETTINGS) {
@@ -336,7 +346,7 @@ void App::handleGlobalInput(InputEvent& event) {
 
     // TAB menu
     if (event == INPUT_TAB && !_tabMenuOpen && _currentScreen != SCREEN_PROJECT
-        && _currentScreen != SCREEN_SETTINGS) {
+        && _currentScreen != SCREEN_SETTINGS && _currentScreen != SCREEN_PROJECT_INFO) {
         _tabMenuOpen = true;
         _tabMenuVisible = false;
         _tabMenuMoved = false;
@@ -411,6 +421,13 @@ void App::handleTransitions() {
         }
     }
 
+    if (_currentScreen == SCREEN_PROJECT_INFO) {
+        if (_projectInfoView.shouldClose()) {
+            _projectInfoView.clearClose();
+            switchScreen(_screenBeforeProjectInfo);
+        }
+    }
+
     if (_currentScreen == SCREEN_PATTERN_SELECT && _patternSelectView.shouldEditPattern()) {
         _patternSelectView.clearEditRequest();
         _patternEditView.setPattern(_patternSelectView.getSelectedPattern());
@@ -477,10 +494,11 @@ void App::drawHeader(Canvas& canvas, const Theme& theme) {
     const char* title = "";
     char titleBuf[16];
     switch (_currentScreen) {
+        case SCREEN_PROJECT_INFO:
+            title = "PROJECT";
+            break;
         case SCREEN_SOUND:
-            if (_soundView.inProjectInfo()) {
-                title = "PROJECT";
-            } else if (_soundView.inSubView()) {
+            if (_soundView.inSubView()) {
                 SoundSlot& s = _project.sounds[_soundView.getCursor()];
                 if (s.name[0]) {
                     title = s.name;
@@ -719,6 +737,7 @@ View* App::getView(Screen s) {
         case SCREEN_PLAY: return &_playView;
         case SCREEN_PROJECT: return &_projectView;
         case SCREEN_SETTINGS: return &_settingsView;
+        case SCREEN_PROJECT_INFO: return &_projectInfoView;
     }
     return &_soundView;
 }
