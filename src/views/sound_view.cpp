@@ -771,17 +771,25 @@ void SoundView::drawFx(Canvas& canvas, const Theme& theme) {
     canvas.drawString(lvlStr, hdrLeft + hdrContentW - 4, infoY);
 
     static const char* labels[NUM_FX] = {"PITCH", "CRUSH", "LPF", "HPF"};
-    GridLayout grid = GridLayout::make(4, 1, 34);
-    grid.cellH -= 12;
+    const int knobR = 16;
+    const int tileH = 4 + 10 + 10 + knobR * 2 + 10; // pad + label + value + knob + pad
+    const int gridW = SCREEN_WIDTH - margin * 2;
+    const int spacing = 3;
+    const int cellW = (gridW - spacing * 3) / 4;
+    const int contentW = cellW * 4 + spacing * 3;
+    const int gridLeft = margin + (gridW - contentW) / 2;
+    const int footerY = SCREEN_HEIGHT - 12;
+    const int availH = footerY - 34;
+    const int gridTop = 34 + (availH - tileH) / 2 - 4;
 
     for (int i = 0; i < NUM_FX; i++) {
-        int x, y;
-        grid.cellXY(i, x, y);
+        int x = gridLeft + i * (cellW + spacing);
+        int y = gridTop;
         bool focused = (i == _fxCursor);
         bool enabled = slot.fx.enabled[i];
 
         uint16_t bgColor = focused ? theme.accent : theme.dark;
-        canvas.fillRect(x, y, grid.cellW, grid.cellH, bgColor);
+        canvas.fillRect(x, y, cellW, tileH, bgColor);
 
         // Label top-left of tile
         uint16_t textColor;
@@ -802,16 +810,12 @@ void SoundView::drawFx(Canvas& canvas, const Theme& theme) {
         }
         canvas.drawString(valStr, x + 4, y + 14);
 
-        // Knob centered in available space below text
-        int knobR = (grid.cellW >= 70) ? 25 : 16;
-        int knobTop = y + 24;
-        int knobBot = y + grid.cellH;
-        int cx = x + grid.cellW / 2;
-        int cy = knobTop + (knobBot - knobTop) / 2;
+        // Knob centered below text
+        int cx = x + cellW / 2;
+        int cy = y + 4 + 10 + 10 + knobR;
         drawKnob(canvas, cx, cy, knobR, slot.fx.value[i], SlotFxOps::maxValue(i), enabled, focused, theme);
     }
 
-    const int footerY = SCREEN_HEIGHT - 12;
     canvas.setTextSize(1);
     canvas.setTextColor(theme.dim);
     canvas.setTextDatum(top_left);
@@ -866,10 +870,10 @@ void SoundView::drawKnob(Canvas& canvas, int cx, int cy, int r,
         }
     }
 
-    // Indicator line (1px wide, from r=4 to r=7)
+    // Indicator line (1px wide, from r=2 to r=7)
     float cosA = cosf(angle);
     float sinA = sinf(angle);
-    int innerR = hr - 3;
+    int innerR = 2;
     for (int d = innerR; d <= hr; d++) {
         int px1 = ctr + (int)(d * cosA);
         int py1 = ctr + (int)(d * sinA);

@@ -132,10 +132,6 @@ The Cardputer ADV has ~127 KB available for samples — roughly **4 seconds tota
 
 The Cardputer Zero has significantly more memory and supports up to 10 seconds per sample.
 
-## Known Issues
-
-- Brightness adjustment (N+/-) does not work
-
 ## Planned Features
 
 - Swing

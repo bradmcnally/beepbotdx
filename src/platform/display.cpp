@@ -38,8 +38,12 @@ Canvas& Display::canvas() {
 
 void Display::shutdown() {}
 
+#define TFT_BL 38
+#define MIN_BRIGHT 160
+
 void Display::setBrightness(uint8_t value) {
-    M5Cardputer.Display.setBrightness(value);
+    uint8_t mapped = MIN_BRIGHT + (uint16_t)value * (255 - MIN_BRIGHT) / 255;
+    analogWrite(TFT_BL, mapped);
 }
 
 void Display::toggleFullscreen() {}

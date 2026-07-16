@@ -315,11 +315,9 @@ void App::handleGlobalInput(InputEvent& event) {
         if (Input::isBHeld()) {
             if (event == INPUT_PLUS && _project.bpm < MAX_BPM) { _project.bpm++; _project.dirty = true; }
             if (event == INPUT_MINUS && _project.bpm > MIN_BPM) { _project.bpm--; _project.dirty = true; }
-            if (_currentScreen == SCREEN_PLAY || _currentScreen == SCREEN_SONG || _currentScreen == SCREEN_PATTERN_SELECT) {
-                char bpmMsg[10];
-                snprintf(bpmMsg, sizeof(bpmMsg), "bpm %d", _project.bpm);
-                _character.say(bpmMsg);
-            }
+            char bpmMsg[10];
+            snprintf(bpmMsg, sizeof(bpmMsg), "bpm %d", _project.bpm);
+            _character.say(bpmMsg);
         } else {
             uint8_t vol = Audio::getVolume();
             if (event == INPUT_PLUS) {
