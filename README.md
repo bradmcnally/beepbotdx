@@ -38,7 +38,8 @@ Record sounds with the built-in mic, import WAV files from SD, build patterns, a
 | TAB | Navigate screens |
 | S | Save project |
 | O | Open project |
-| G | Settings |
+| G | Global settings |
+| P | Project settings |
 | M | Cycle LED mode |
 | +/- | Volume |
 | B+/- | BPM |
@@ -70,6 +71,8 @@ Press **H** on any screen for context-sensitive keyboard shortcuts. Press **G** 
 | SPACE | Audition |
 | DEL | Clear |
 | I | Import WAV |
+| T | Trim focused sound |
+| F | Add FX to focused out |
 | R | Rename |
 | 1-8 | Audition slot |
 
