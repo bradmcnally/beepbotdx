@@ -45,6 +45,9 @@ public:
     void loadSlot(uint8_t slot);
     void openProjectList(uint8_t slot);
     void tick();
+#ifdef CARDPUTER_ZERO
+    bool shouldQuit() const { return _quitRequested; }
+#endif
 
     Project& getProject() { return _project; }
     uint8_t& getCurrentSlot() { return _currentProjectSlot; }
@@ -53,12 +56,22 @@ public:
 private:
     void switchScreen(Screen s);
     View* getView(Screen s);
-    void handleGlobalInput(InputEvent& event);
+    void handleGlobalInput(InputEvent& event, bool textInput);
+    bool saveCurrentProject();
+    bool exportCurrentSong();
+    void showBrightness();
     void handleTransitions();
     void render();
     void drawHeader(Canvas& canvas, const Theme& theme);
     void drawHelp(Canvas& canvas, const Theme& theme);
     void drawTabMenu(Canvas& canvas, const Theme& theme);
+#ifdef CARDPUTER_ZERO
+    void handleQuit(InputEvent event);
+    void drawQuitPrompt(Canvas& canvas, const Theme& theme);
+    bool _confirmQuit = false;
+    bool _quitRequested = false;
+    bool _quitSaveFailed = false;
+#endif
 
     static void onTrigger(uint8_t soundIndex);
     static void onStep(uint8_t step);
@@ -104,6 +117,9 @@ private:
 
     // Brightness (managed by platform via callback)
     uint8_t _brightness = 80;
+#ifdef CARDPUTER_ZERO_DEVICE
+    int _homeCountdownSeconds = 0;
+#endif
 public:
     void setBrightness(uint8_t percent) { _brightness = percent; }
 private:

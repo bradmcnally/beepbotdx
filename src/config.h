@@ -3,8 +3,12 @@
 // Audio
 #define SAMPLE_RATE 16000
 #ifdef DESKTOP_BUILD
-#define MAX_SAMPLE_LENGTH 160000  // 10.0s at 16kHz
+#ifdef CARDPUTER_ZERO
+#define SAMPLE_ARENA_BYTES (10 * 1024 * 1024)
+#else
 #define SAMPLE_ARENA_BYTES (8 * 1024 * 1024)
+#define MAX_SAMPLE_LENGTH 160000  // ADV desktop simulator limit
+#endif
 #else
 #define MAX_SAMPLE_LENGTH 32000   // 2.0s at 16kHz
 #define SAMPLE_ARENA_BYTES (160 * 1024)  // 5.0s shared sample pool at 16-bit
@@ -39,3 +43,14 @@
 
 // Features
 #define ENABLE_SCREENSHOTS 0
+
+// The Zero uses F for Up.
+#ifdef CARDPUTER_ZERO
+constexpr char FX_SHORTCUT = 'e';
+constexpr char TABLE_FLIP_SHORTCUT = 'k';
+#else
+constexpr char FX_SHORTCUT = 'f';
+constexpr char TABLE_FLIP_SHORTCUT = 'f';
+#endif
+constexpr char FX_SHORTCUT_LABEL[] = {char(FX_SHORTCUT - 'a' + 'A'), '\0'};
+constexpr char TABLE_FLIP_SHORTCUT_LABEL[] = {char(TABLE_FLIP_SHORTCUT - 'a' + 'A'), '\0'};

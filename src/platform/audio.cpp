@@ -3,6 +3,7 @@
 #include "config.h"
 #include "core/slot_fx.h"
 #include "core/fx_dsp.h"
+#include "core/record_gain.h"
 
 static const uint32_t REC_CHUNK = 1024;
 static int16_t _recChunk[REC_CHUNK];
@@ -13,6 +14,7 @@ static uint32_t _recMaxLength = 0;
 static uint32_t _recOffset = 0;
 static bool _recording = false;
 static bool _primed = false;
+static uint8_t _recGain = 1;
 
 static uint8_t _nextChannel = 0;
 static uint8_t _volume = SPEAKER_VOLUME;
@@ -21,7 +23,7 @@ static constexpr uint32_t FX_CHUNK_SAMPLES = 256;
 static constexpr uint8_t FX_BUFFER_COUNT = 3;
 
 struct FxVoice {
-    const SoundSlot* source;
+    SoundSlot source;
     float position;
     float pitchMultiplier;
     SlotFx fx;
@@ -40,13 +42,13 @@ static bool queueFxChunk(uint8_t channel, bool stopCurrent = false) {
     int16_t* output = voice.buffers[voice.nextBuffer];
     uint32_t outputLength = 0;
     while (outputLength < FX_CHUNK_SAMPLES &&
-           (uint32_t)voice.position < voice.source->length) {
+           (uint32_t)voice.position < voice.source.length) {
         uint32_t index = (uint32_t)voice.position;
         float fraction = voice.position - index;
-        int16_t first = SoundSlotOps::getSample(*voice.source, index);
+        int16_t first = SoundSlotOps::getPlaybackSample(voice.source, index);
         int16_t second =
-            (index + 1 < voice.source->length)
-                ? SoundSlotOps::getSample(*voice.source, index + 1) : first;
+            (index + 1 < voice.source.length)
+                ? SoundSlotOps::getPlaybackSample(voice.source, index + 1) : first;
         int16_t interpolated =
             (int16_t)(first + fraction * (second - first));
         output[outputLength++] = FxDsp::processSample(
@@ -63,11 +65,17 @@ static bool queueFxChunk(uint8_t channel, bool stopCurrent = false) {
     M5Cardputer.Speaker.playRaw(
         output, outputLength, SAMPLE_RATE, false, 1, channel, stopCurrent);
     voice.nextBuffer = (voice.nextBuffer + 1) % FX_BUFFER_COUNT;
-    if ((uint32_t)voice.position >= voice.source->length) voice.active = false;
+    if ((uint32_t)voice.position >= voice.source.length) voice.active = false;
     return true;
 }
 
+static void prepareForArenaMutation() {
+    if (Audio::isRecording()) Audio::recordStop();
+    Audio::stopAll();
+}
+
 void Audio::init() {
+    SoundSlotOps::setBeforeArenaMutation(prepareForArenaMutation);
     M5Cardputer.Speaker.begin();
     M5Cardputer.Speaker.setVolume(_volume);
 }
@@ -81,13 +89,14 @@ void Audio::update() {
     }
 }
 
-void Audio::recordStart(void* buffer, uint32_t maxLength, BitDepth bitDepth) {
+void Audio::recordStart(void* buffer, uint32_t maxLength, BitDepth bitDepth, uint8_t gain) {
     M5Cardputer.Speaker.end();
     M5Cardputer.Mic.end();
     delay(100);
 
     _recBuffer = buffer;
     _recBitDepth = bitDepth;
+    _recGain = gain;
     _recMaxLength = maxLength;
     _recOffset = 0;
     _recording = true;
@@ -129,10 +138,11 @@ void Audio::recordUpdate() {
         if (_recBitDepth == BIT_DEPTH_8) {
             int8_t* destination = (int8_t*)_recBuffer;
             for (uint32_t i = 0; i < toCopy; i++)
-                destination[_recOffset + i] = (int8_t)(_recChunk[i] >> 8);
+                destination[_recOffset + i] = (int8_t)(RecordGain::apply(_recChunk[i], _recGain) >> 8);
         } else {
-            memcpy((int16_t*)_recBuffer + _recOffset,
-                   _recChunk, toCopy * sizeof(int16_t));
+            int16_t* destination = (int16_t*)_recBuffer;
+            for (uint32_t i = 0; i < toCopy; i++)
+                destination[_recOffset + i] = RecordGain::apply(_recChunk[i], _recGain);
         }
         _recOffset += toCopy;
     }
@@ -161,13 +171,14 @@ void Audio::triggerSound(const SoundSlot& slot, uint8_t volume, const SlotFx* fx
     if (!slot.samples || slot.length == 0) return;
     M5Cardputer.Speaker.setChannelVolume(_nextChannel, volume);
 
-    if (fx && FxDsp::hasActiveFx(*fx)) {
+    if (slot.normalize || (fx && FxDsp::hasActiveFx(*fx))) {
         FxVoice& voice = _fxVoices[_nextChannel];
-        voice.source = &slot;
+        voice.source = slot;
         voice.position = 0.0f;
-        voice.pitchMultiplier = fx->enabled[FX_PITCH]
+        voice.pitchMultiplier = fx && fx->enabled[FX_PITCH]
             ? FxDsp::pitchRate(fx->value[FX_PITCH]) : 1.0f;
-        voice.fx = *fx;
+        if (fx) voice.fx = *fx;
+        else SlotFxOps::defaults(voice.fx);
         FxDsp::initFilterState(voice.filterState);
         voice.active = true;
         // A third persistent buffer ensures the first replacement chunk
@@ -197,6 +208,8 @@ void Audio::stopAll() {
         _fxVoices[channel].active = false;
     }
     M5Cardputer.Speaker.stop();
+    // stop() queues a request; wait until the speaker task releases samples.
+    while (M5Cardputer.Speaker.isPlaying()) delay(1);
 }
 
 void Audio::setVolume(uint8_t vol) {

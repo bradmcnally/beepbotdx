@@ -12,12 +12,26 @@
     },
     {
       "name": "zero",
-      "displayName": "Cardputer Zero (320x170)",
+      "displayName": "Cardputer Zero simulator (320x170)",
       "binaryDir": "${sourceDir}/build_zero",
       "cacheVariables": {
-        "SCREEN_W": "320",
-        "SCREEN_H": "170"
+        "CARDPUTER_ZERO": "ON"
+      }
+    },
+    {
+      "name": "zero-device",
+      "displayName": "Cardputer Zero Linux device",
+      "inherits": "zero",
+      "binaryDir": "${sourceDir}/build_zero_device",
+      "cacheVariables": {
+        "CARDPUTER_ZERO_DEVICE": "ON",
+        "CMAKE_BUILD_TYPE": "Release"
       }
     }
+  ],
+  "buildPresets": [
+    { "name": "adv", "configurePreset": "adv" },
+    { "name": "zero", "configurePreset": "zero" },
+    { "name": "zero-device", "configurePreset": "zero-device" }
   ]
 }

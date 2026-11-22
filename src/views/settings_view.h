@@ -10,9 +10,33 @@ enum LedMode : uint8_t {
     LED_OFF = 2,
 };
 
+inline LedMode normalizeLedMode(LedMode mode) {
+#ifdef CARDPUTER_ZERO
+    return mode == LED_OFF ? LED_OFF : LED_METRONOME;
+#else
+    return mode;
+#endif
+}
+
+inline LedMode nextLedMode(LedMode mode, bool backwards = false) {
+#ifdef CARDPUTER_ZERO
+    return mode == LED_OFF ? LED_METRONOME : LED_OFF;
+#else
+    return static_cast<LedMode>((mode + (backwards ? 2 : 1)) % 3);
+#endif
+}
+
+inline bool ledShowsIdleColor(LedMode mode) {
+#ifdef CARDPUTER_ZERO
+    return false;
+#else
+    return mode != LED_OFF;
+#endif
+}
+
 struct GlobalSettings {
     bool autoSave = false;
-    LedMode ledMode = LED_ON;
+    LedMode ledMode = normalizeLedMode(LED_ON);
     bool confirmDelete = true;
     bool bootToProject = false;
     bool shakeGen = true;

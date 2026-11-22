@@ -1,0 +1,22 @@
+#!/bin/sh
+set -e
+
+case "$1" in
+    configure)
+        # Apply access to the existing LED now; the udev rule covers later boots.
+        for attribute in brightness trigger; do
+            path="/sys/class/leds/ACT/$attribute"
+            if [ -e "$path" ]; then
+                chgrp input "$path"
+                chmod g+w "$path"
+            fi
+        done
+        if command -v udevadm >/dev/null 2>&1; then
+            if ! udevadm control --reload-rules; then
+                echo "beepbotdx: udev rules will reload at the next boot; ACT permissions are already applied." >&2
+            fi
+        fi
+        ;;
+esac
+
+exit 0

@@ -1,0 +1,7 @@
+[Desktop Entry]
+Name=beepBot DX
+Exec=/usr/share/APPLaunch/bin/beepbotdx
+Terminal=false
+Sysplause=true
+Icon=share/images/beepbotdx.png
+Type=Application

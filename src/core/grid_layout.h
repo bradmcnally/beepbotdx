@@ -10,9 +10,10 @@ struct GridLayout {
     int spacing;
     int cols;
 
-    static GridLayout make(int cols, int rows, int gridTop, int margin = 3, int spacing = 3) {
+    static GridLayout make(int cols, int rows, int gridTop, int margin = 3, int spacing = 3,
+                           int footerHeight = 0) {
         int gridW = SCREEN_WIDTH - margin * 2;
-        int gridH = SCREEN_HEIGHT - gridTop - margin;
+        int gridH = SCREEN_HEIGHT - gridTop - margin - footerHeight;
         int cellW = (gridW - spacing * (cols - 1)) / cols;
         int cellH = (gridH - spacing * (rows - 1)) / rows;
         int contentW = cellW * cols + spacing * (cols - 1);

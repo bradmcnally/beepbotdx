@@ -5,6 +5,7 @@ memory/
 beepbotdx_data/
 build/
 build_zero/
+build_zero_device/
 
 
 # PlatformIO build artifacts

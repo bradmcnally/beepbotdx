@@ -4,6 +4,6 @@
 
 namespace Power {
 
-uint8_t getBatteryPercent();
+int getBatteryPercent();
 
 }

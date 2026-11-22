@@ -1,10 +1,17 @@
 #include "platform/audio.h"
 #include "core/slot_fx.h"
 #include "core/fx_dsp.h"
+#include "core/record_gain.h"
 #include "config.h"
 #include <SDL2/SDL.h>
 #include <cstring>
 #include <cstdlib>
+#ifdef CARDPUTER_ZERO_DEVICE
+#include <cstdio>
+#include <spawn.h>
+#include <sys/wait.h>
+extern char** environ;
+#endif
 
 struct Voice {
     SoundSlot slot;
@@ -17,7 +24,9 @@ struct Voice {
 
 static Voice _voices[NUM_VOICES];
 static uint8_t _nextChannel = 0;
+#ifndef CARDPUTER_ZERO_DEVICE
 static uint8_t _volume = SPEAKER_VOLUME;
+#endif
 static SDL_AudioDeviceID _playDev = 0;
 static int _playDevRate = SAMPLE_RATE;
 
@@ -28,6 +37,7 @@ static uint32_t _recOffset = 0;
 static bool _recording = false;
 static SDL_AudioDeviceID _capDev = 0;
 static int _capDevRate = SAMPLE_RATE;
+static uint8_t _recGain = 1;
 
 static void audioCallback(void* userdata, Uint8* stream, int len) {
     (void)userdata;
@@ -49,11 +59,11 @@ static void audioCallback(void* userdata, Uint8* stream, int len) {
             double frac = _voices[v].fracPos - idx;
             int16_t s;
             if (idx + 1 < _voices[v].slot.length) {
-                int16_t first = SoundSlotOps::getSample(_voices[v].slot, idx);
-                int16_t second = SoundSlotOps::getSample(_voices[v].slot, idx + 1);
+                int16_t first = SoundSlotOps::getPlaybackSample(_voices[v].slot, idx);
+                int16_t second = SoundSlotOps::getPlaybackSample(_voices[v].slot, idx + 1);
                 s = (int16_t)(first * (1.0 - frac) + second * frac);
             } else {
-                s = SoundSlotOps::getSample(_voices[v].slot, idx);
+                s = SoundSlotOps::getPlaybackSample(_voices[v].slot, idx);
             }
 
             s = FxDsp::processSample(s, _voices[v].fx.value,
@@ -68,11 +78,21 @@ static void audioCallback(void* userdata, Uint8* stream, int len) {
         }
         if (mix > 32767) mix = 32767;
         if (mix < -32768) mix = -32768;
+#ifdef CARDPUTER_ZERO_DEVICE
+        out[i] = static_cast<int16_t>(mix);
+#else
         out[i] = (int16_t)(mix * _volume / 255);
+#endif
     }
 }
 
+static void prepareForArenaMutation() {
+    if (Audio::isRecording()) Audio::recordStop();
+    Audio::stopAll();
+}
+
 void Audio::init() {
+    SoundSlotOps::setBeforeArenaMutation(prepareForArenaMutation);
     SDL_Init(SDL_INIT_AUDIO);
     memset(_voices, 0, sizeof(_voices));
 
@@ -84,18 +104,26 @@ void Audio::init() {
     want.callback = audioCallback;
 
     SDL_AudioSpec have = {};
-    _playDev = SDL_OpenAudioDevice(nullptr, 0, &want, &have, SDL_AUDIO_ALLOW_FREQUENCY_CHANGE);
+#ifdef CARDPUTER_ZERO_DEVICE
+    // SDL converts the mono engine stream to the system audio device format.
+    constexpr int allowedChanges = 0;
+#else
+    constexpr int allowedChanges = SDL_AUDIO_ALLOW_FREQUENCY_CHANGE;
+#endif
+    _playDev = SDL_OpenAudioDevice(nullptr, 0, &want, &have, allowedChanges);
     _playDevRate = _playDev ? have.freq : SAMPLE_RATE;
     if (_playDev) SDL_PauseAudioDevice(_playDev, 0);
+    else SDL_Log("Audio playback unavailable: %s", SDL_GetError());
 }
 
 void Audio::update() {
     // Desktop FX processing runs inside the SDL audio callback.
 }
 
-void Audio::recordStart(void* buffer, uint32_t maxLength, BitDepth bitDepth) {
+void Audio::recordStart(void* buffer, uint32_t maxLength, BitDepth bitDepth, uint8_t gain) {
     _recBuffer = buffer;
     _recBitDepth = bitDepth;
+    _recGain = gain;
     _recMaxLength = maxLength;
     _recOffset = 0;
     _recording = true;
@@ -109,9 +137,15 @@ void Audio::recordStart(void* buffer, uint32_t maxLength, BitDepth bitDepth) {
     want.callback = nullptr;
 
     SDL_AudioSpec have = {};
-    _capDev = SDL_OpenAudioDevice(nullptr, 1, &want, &have, SDL_AUDIO_ALLOW_FREQUENCY_CHANGE);
+#ifdef CARDPUTER_ZERO_DEVICE
+    constexpr int allowedChanges = 0;
+#else
+    constexpr int allowedChanges = SDL_AUDIO_ALLOW_FREQUENCY_CHANGE;
+#endif
+    _capDev = SDL_OpenAudioDevice(nullptr, 1, &want, &have, allowedChanges);
     _capDevRate = _capDev ? have.freq : SAMPLE_RATE;
     if (_capDev) SDL_PauseAudioDevice(_capDev, 0);
+    else SDL_Log("Audio capture unavailable: %s", SDL_GetError());
 }
 
 void Audio::recordUpdate() {
@@ -124,15 +158,19 @@ void Audio::recordUpdate() {
     if (_capDevRate == SAMPLE_RATE) {
         uint32_t remaining = _recMaxLength - _recOffset;
         uint32_t toRead = available < remaining ? available : remaining;
-        if (_recBitDepth == BIT_DEPTH_16) {
+        if (_recBitDepth == BIT_DEPTH_16 && _recGain == 1) {
             SDL_DequeueAudio(_capDev, (int16_t*)_recBuffer + _recOffset, toRead * 2);
         } else {
             int16_t tmp[4096];
             if (toRead > 4096) toRead = 4096;
             SDL_DequeueAudio(_capDev, tmp, toRead * 2);
-            int8_t* destination = (int8_t*)_recBuffer;
-            for (uint32_t i = 0; i < toRead; i++)
-                destination[_recOffset + i] = (int8_t)(tmp[i] >> 8);
+            for (uint32_t i = 0; i < toRead; i++) {
+                int16_t sample = RecordGain::apply(tmp[i], _recGain);
+                if (_recBitDepth == BIT_DEPTH_8)
+                    ((int8_t*)_recBuffer)[_recOffset + i] = (int8_t)(sample >> 8);
+                else
+                    ((int16_t*)_recBuffer)[_recOffset + i] = sample;
+            }
         }
         _recOffset += toRead;
     } else {
@@ -152,6 +190,7 @@ void Audio::recordUpdate() {
             int16_t sample = idx + 1 < toRead
                 ? (int16_t)(tmp[idx] * (1.0 - frac) + tmp[idx + 1] * frac)
                 : tmp[idx];
+            sample = RecordGain::apply(sample, _recGain);
             if (_recBitDepth == BIT_DEPTH_8)
                 ((int8_t*)_recBuffer)[_recOffset + i] = (int8_t)(sample >> 8);
             else
@@ -201,6 +240,34 @@ void Audio::stopAll() {
     SDL_UnlockAudioDevice(_playDev);
 }
 
+#ifdef CARDPUTER_ZERO_DEVICE
+int Audio::adjustSystemVolume(bool increase) {
+    FILE* pipe = popen("wpctl get-volume @DEFAULT_AUDIO_SINK@ 2>/dev/null", "r");
+    if (!pipe) return -1;
+    char line[128] = {};
+    const bool read = fgets(line, sizeof(line), pipe) != nullptr;
+    const int readStatus = pclose(pipe);
+    float current = 0.0f;
+    if (!read || readStatus != 0 || sscanf(line, "Volume: %f", &current) != 1 ||
+        current < 0.0f || current > 1.0f) return -1;
+
+    const int percent = static_cast<int>(current * 100.0f + 0.5f);
+    const int next = increase ? (percent < 95 ? percent + 5 : 100)
+                              : (percent > 5 ? percent - 5 : 0);
+    char volume[8];
+    snprintf(volume, sizeof(volume), "%d%%", next);
+    char* const args[] = {
+        const_cast<char*>("wpctl"), const_cast<char*>("set-volume"),
+        const_cast<char*>("-l"), const_cast<char*>("1.0"),
+        const_cast<char*>("@DEFAULT_AUDIO_SINK@"), volume, nullptr};
+    pid_t child = 0;
+    if (posix_spawnp(&child, "wpctl", nullptr, nullptr, args, environ) != 0) return -1;
+    int status = 0;
+    if (waitpid(child, &status, 0) != child || !WIFEXITED(status) || WEXITSTATUS(status) != 0)
+        return -1;
+    return next;
+}
+#else
 void Audio::setVolume(uint8_t vol) {
     _volume = vol;
 }
@@ -208,3 +275,4 @@ void Audio::setVolume(uint8_t vol) {
 uint8_t Audio::getVolume() {
     return _volume;
 }
+#endif

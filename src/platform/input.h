@@ -22,9 +22,15 @@ enum InputEvent {
     INPUT_NUM0,
     INPUT_PLUS,
     INPUT_MINUS,
+    INPUT_LEVEL_DOWN,
+    INPUT_LEVEL_UP,
     INPUT_CHAR,
     INPUT_ESC,
     INPUT_SHAKE,
+#ifdef CARDPUTER_ZERO_DEVICE
+    INPUT_HOME,
+    INPUT_BRIGHTNESS,
+#endif
 };
 
 namespace Input {
@@ -43,5 +49,9 @@ bool isRecordPressed();
 bool wasRecordPressed();
 bool wasRecordReleased();
 bool shouldQuit();
+#ifdef CARDPUTER_ZERO_DEVICE
+int brightnessPercent();
+int homeSecondsRemaining();
+#endif
 
 }

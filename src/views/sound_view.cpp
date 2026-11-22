@@ -10,19 +10,24 @@
 #include "core/grid_layout.h"
 #include "core/slot_fx.h"
 #include "config.h"
+#ifdef CARDPUTER_ZERO
+#include "platform_desktop/storage_paths.h"
+#include <algorithm>
+#include <cctype>
+#endif
 #include <cstring>
 #include <cmath>
 
 static uint8_t computeAudioLevel(const SoundSlot& slot, uint32_t totalLength) {
     if (!slot.samples || totalLength == 0) return 0;
     uint32_t scanStart = (totalLength > 1600) ? totalLength - 1600 : 0;
-    int16_t peak = 0;
+    int32_t peak = 0;
     for (uint32_t i = scanStart; i < totalLength; i++) {
         int16_t sample = SoundSlotOps::getSample(slot, i);
-        int16_t val = sample < 0 ? -sample : sample;
+        int32_t val = sample < 0 ? -static_cast<int32_t>(sample) : sample;
         if (val > peak) peak = val;
     }
-    return (uint8_t)(peak >> 7);
+    return static_cast<uint8_t>(peak >= 32768 ? 255 : peak >> 7);
 }
 
 SoundView::SoundView(Project& project, Character& character)
@@ -43,14 +48,16 @@ SoundView::SoundView(Project& project, Character& character)
     _flashTime = 0;
     _playbackActive = false;
     _playbackStart = 0;
+    _playbackOffset = 0;
     _playbackLength = 0;
     _playbackRate = SAMPLE_RATE;
     _confirmingDelete = false;
-    _recordMaxLength = MAX_SAMPLE_LENGTH;
+    _recordMaxLength = 0;
 }
 
 void SoundView::enter() {
     _subState = STATE_LIST;
+    _playbackActive = false;
     _character.setState(CHAR_IDLE);
 }
 
@@ -142,11 +149,13 @@ void SoundView::updateList(InputEvent event) {
                 _trimStart = 0;
                 _trimEnd = slot.length;
                 _trimMovingEnd = false;
+                _playbackActive = false;
                 _subState = STATE_TRIM;
                 _character.setState(CHAR_FOCUSED);
             } else {
+                _recordReadySelection = 0;
                 _subState = STATE_RECORD_READY;
-                _character.setState(CHAR_IDLE);
+                _character.setState(CHAR_FOCUSED);
                 { char memMsg[16]; snprintf(memMsg, sizeof(memMsg), "%luKB free", (unsigned long)(Memory::getFree() / 1024));
                 _character.say(memMsg); }
             }
@@ -175,7 +184,7 @@ void SoundView::updateList(InputEvent event) {
                 _renameLen = strlen(_renameBuffer);
                 _subState = STATE_RENAME;
                 _character.setState(CHAR_FOCUSED);
-            } else if (ch == 'f' && _project.sounds[_cursor].occupied) {
+            } else if (ch == FX_SHORTCUT && _project.sounds[_cursor].occupied) {
                 _fxCursor = 0;
                 _subState = STATE_FX;
                 _character.setState(CHAR_FOCUSED);
@@ -184,18 +193,13 @@ void SoundView::updateList(InputEvent event) {
                 _trimStart = 0;
                 _trimEnd = slot.length;
                 _trimMovingEnd = false;
+                _playbackActive = false;
                 _subState = STATE_TRIM;
                 _character.setState(CHAR_FOCUSED);
+            } else if (ch == 'n' && _project.sounds[_cursor].occupied) {
+                toggleNormalize();
             } else if (ch == 'i') {
-                _fileCursor = 0;
-                if (!Storage::isReady()) {
-                    _character.setState(CHAR_ERROR);
-                } else if (Storage::listWavFiles("/beepbotdx/samples", _wavFiles, _wavFileCount, 64) && _wavFileCount > 0) {
-                    _subState = STATE_LOAD_BROWSER;
-                    _character.setState(CHAR_FOCUSED);
-                } else {
-                    _character.setState(CHAR_ERROR);
-                }
+                openImportBrowser();
             }
             break;
         }
@@ -206,24 +210,33 @@ void SoundView::updateList(InputEvent event) {
 
 void SoundView::updateRecordReady(InputEvent event) {
     switch (event) {
+        case INPUT_LEFT:
+        case INPUT_UP:
+            _recordReadySelection = 0;
+            break;
+        case INPUT_RIGHT:
+        case INPUT_DOWN:
+            _recordReadySelection = 1;
+            break;
         case INPUT_ENTER:
         case INPUT_SPACE:
-            _countdownStart = millis();
-            _countdownBeat = 0;
-            _subState = STATE_COUNTDOWN;
-            _character.setState(CHAR_FOCUSED);
+            if (_recordReadySelection == 1) {
+                openImportBrowser();
+            } else {
+                _countdownStart = millis();
+                _countdownBeat = 0;
+                _subState = STATE_COUNTDOWN;
+                _character.setState(CHAR_FOCUSED);
+            }
             break;
         case INPUT_CHAR:
             if (Input::getChar() == 'i') {
-                _fileCursor = 0;
-                if (!Storage::isReady()) {
-                    _character.setState(CHAR_ERROR);
-                } else if (Storage::listWavFiles("/beepbotdx/samples", _wavFiles, _wavFileCount, 64) && _wavFileCount > 0) {
-                    _subState = STATE_LOAD_BROWSER;
-                    _character.setState(CHAR_FOCUSED);
-                } else {
-                    _character.setState(CHAR_ERROR);
-                }
+                openImportBrowser();
+            } else if (Input::getChar() == 'r') {
+                _countdownStart = millis();
+                _countdownBeat = 0;
+                _subState = STATE_COUNTDOWN;
+                _character.setState(CHAR_FOCUSED);
             }
             break;
         case INPUT_ESC:
@@ -265,6 +278,7 @@ void SoundView::updateRecordDone() {
         _trimStart = 0;
         _trimEnd = slot.length;
         _trimMovingEnd = false;
+        _playbackActive = false;
         _subState = STATE_TRIM;
         _character.setState(CHAR_FOCUSED);
     }
@@ -306,6 +320,7 @@ void SoundView::updateTrim(InputEvent event) {
                 Audio::triggerSound(trimmed, slot.level * 255 / 100);
             }
             _playbackStart = millis();
+            _playbackOffset = _trimStart;
             _playbackLength = _trimEnd - _trimStart;
             _playbackRate = slot.sampleRate;
             _playbackActive = true;
@@ -326,7 +341,9 @@ void SoundView::updateTrim(InputEvent event) {
             break;
         case INPUT_CHAR: {
             char ch = Input::getChar();
-            if (ch == 'f') {
+            if (ch == 'n') {
+                toggleNormalize();
+            } else if (ch == FX_SHORTCUT) {
                 _fxCursor = 0;
                 _subState = STATE_FX;
                 _character.setState(CHAR_FOCUSED);
@@ -387,10 +404,13 @@ void SoundView::updateFx(InputEvent event) {
             break;
         case INPUT_CHAR: {
             char ch = Input::getChar();
-            if (ch == 't') {
+            if (ch == 'n') {
+                toggleNormalize();
+            } else if (ch == 't') {
                 _trimStart = 0;
                 _trimEnd = slot.length;
                 _trimMovingEnd = false;
+                _playbackActive = false;
                 _subState = STATE_TRIM;
                 _character.setState(CHAR_FOCUSED);
             }
@@ -401,7 +421,133 @@ void SoundView::updateFx(InputEvent event) {
     }
 }
 
+void SoundView::openImportBrowser() {
+    if (!Storage::isReady()) {
+        _character.setState(CHAR_ERROR);
+        _character.say("storage error");
+        return;
+    }
+#ifdef CARDPUTER_ZERO
+    _browserReturnState = _subState;
+    _browserDirectory = Storage::sampleDirectory();
+    _browserPreviewPath.clear();
+    refreshImportBrowser();
+    _subState = STATE_LOAD_BROWSER;
+    _character.setState(CHAR_FOCUSED);
+#else
+    _fileCursor = 0;
+    if (Storage::listWavFiles("/beepbotdx/samples", _wavFiles, _wavFileCount, 64)) {
+        _subState = STATE_LOAD_BROWSER;
+        _character.setState(CHAR_FOCUSED);
+    } else {
+        _character.setState(CHAR_ERROR);
+        _character.say("folder error");
+    }
+#endif
+}
+
+#ifdef CARDPUTER_ZERO
+void SoundView::refreshImportBrowser() {
+    _browserEntries.clear();
+    _browserCursor = 0;
+    if (_browserDirectory.has_parent_path() &&
+        _browserDirectory != _browserDirectory.root_path())
+        _browserEntries.push_back({"..", true});
+
+    std::error_code error;
+    std::filesystem::directory_iterator iterator(_browserDirectory, error);
+    if (error) {
+        _character.say("folder error");
+        return;
+    }
+    const std::filesystem::directory_iterator end;
+    for (; iterator != end; iterator.increment(error)) {
+        if (error) { _character.say("folder error"); break; }
+        const auto& entry = *iterator;
+        if (_browserEntries.size() >= 256) break;
+        const std::string name = entry.path().filename().string();
+        if (name.empty() || name[0] == '.') continue;
+        const bool directory = entry.is_directory(error);
+        if (error) { error.clear(); continue; }
+        if (!directory) {
+            std::string extension = entry.path().extension().string();
+            std::transform(extension.begin(), extension.end(), extension.begin(),
+                           [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+            if (extension != ".wav") continue;
+        }
+        _browserEntries.push_back({name, directory});
+    }
+    const size_t first = !_browserEntries.empty() && _browserEntries[0].name == ".." ? 1 : 0;
+    std::sort(_browserEntries.begin() + first, _browserEntries.end(),
+              [](const BrowserEntry& a, const BrowserEntry& b) {
+                  if (a.directory != b.directory) return a.directory;
+                  return a.name < b.name;
+              });
+}
+#endif
+
 void SoundView::updateLoadBrowser(InputEvent event) {
+#ifdef CARDPUTER_ZERO
+    if (event == INPUT_ESC) {
+        Audio::stopAll();
+        SoundSlotOps::free(_previewSlot);
+        _browserPreviewPath.clear();
+        _subState = _browserReturnState;
+        _character.setState(CHAR_IDLE);
+        return;
+    }
+    if (event == INPUT_LEFT || event == INPUT_BACK) {
+        Audio::stopAll();
+        SoundSlotOps::free(_previewSlot);
+        _browserPreviewPath.clear();
+        if (_browserDirectory.has_parent_path() &&
+            _browserDirectory != _browserDirectory.root_path()) {
+            _browserDirectory = _browserDirectory.parent_path();
+            refreshImportBrowser();
+        }
+        return;
+    }
+    if (event == INPUT_UP && _browserCursor > 0) --_browserCursor;
+    if (event == INPUT_DOWN && _browserCursor + 1 < _browserEntries.size()) ++_browserCursor;
+    if (_browserCursor >= _browserEntries.size()) return;
+
+    const BrowserEntry& selected = _browserEntries[_browserCursor];
+    if ((event == INPUT_ENTER || event == INPUT_RIGHT) && selected.directory) {
+        Audio::stopAll();
+        SoundSlotOps::free(_previewSlot);
+        _browserPreviewPath.clear();
+        _browserDirectory = selected.name == ".." ? _browserDirectory.parent_path()
+                                                    : _browserDirectory / selected.name;
+        refreshImportBrowser();
+        return;
+    }
+    if (!selected.directory &&
+        (event == INPUT_ENTER || event == INPUT_RIGHT || event == INPUT_SPACE)) {
+        const std::string path = (_browserDirectory / selected.name).string();
+        Audio::stopAll();
+        SoundSlotOps::free(_previewSlot);
+        _browserPreviewPath.clear();
+        if (event == INPUT_SPACE) {
+            if (Storage::loadWav(_previewSlot, path.c_str(), _project.bitDepth)) {
+                Audio::triggerSound(_previewSlot);
+                _browserPreviewPath = path;
+                _browserPreviewStart = millis();
+                const uint64_t audioMs = (uint64_t(_previewSlot.length) * 1000 +
+                                          _previewSlot.sampleRate - 1) / _previewSlot.sampleRate;
+                _browserPreviewDuration = audioMs < 300 ? 300 : static_cast<uint32_t>(audioMs);
+            } else _character.say("can't preview");
+        } else if (Storage::loadWav(_project.sounds[_cursor], path.c_str(), _project.bitDepth)) {
+            _project.dirty = true;
+            _character.setState(CHAR_SUCCESS);
+            _character.say("nice one");
+            _subState = STATE_LIST;
+        } else {
+            _character.setState(CHAR_ERROR);
+            _character.say("import failed");
+        }
+    }
+    return;
+#else
     switch (event) {
         case INPUT_UP:
             if (_fileCursor > 0) _fileCursor--;
@@ -450,6 +596,7 @@ void SoundView::updateLoadBrowser(InputEvent event) {
         default:
             break;
     }
+#endif
 }
 
 void SoundView::updateRename(InputEvent event) {
@@ -511,7 +658,7 @@ void SoundView::updateRename(InputEvent event) {
 // --- Draw methods ---
 
 void SoundView::drawList(Canvas& canvas, const Theme& theme) {
-    GridLayout grid = GridLayout::make(4, 2, 22);
+    GridLayout grid = GridLayout::make(4, 2, 22, 3, 3, 12);
 
     for (int i = 0; i < NUM_SOUNDS; i++) {
         int x, y;
@@ -547,6 +694,12 @@ void SoundView::drawList(Canvas& canvas, const Theme& theme) {
         canvas.drawString(_statusMsg, SCREEN_WIDTH - 4, SCREEN_HEIGHT - 10);
     }
 
+    if (_project.sounds[_cursor].occupied) {
+        canvas.setTextDatum(top_left);
+        canvas.setTextColor(_project.sounds[_cursor].normalize ? theme.accent : theme.dim);
+        canvas.drawString("N", 4, SCREEN_HEIGHT - 10);
+    }
+
     if (_confirmingDelete) {
         canvas.darken();
 
@@ -576,28 +729,30 @@ void SoundView::drawList(Canvas& canvas, const Theme& theme) {
 void SoundView::drawRecordReady(Canvas& canvas, const Theme& theme) {
     const int margin = 3;
     const int gap = 3;
-    const int top = 22;
+    const int top = 36;
     const int boxH = SCREEN_HEIGHT - top - margin;
     const int totalW = SCREEN_WIDTH - margin * 2;
     const int boxW = (totalW - gap) / 2;
     int leftX = margin;
     int rightX = margin + boxW + gap;
 
-    canvas.fillRect(leftX, top, boxW, boxH, theme.dark);
-    canvas.fillRect(rightX, top, boxW, boxH, theme.dark);
+    canvas.fillRect(leftX, top, boxW, boxH,
+                    _recordReadySelection == 0 ? theme.accent : theme.dark);
+    canvas.fillRect(rightX, top, boxW, boxH,
+                    _recordReadySelection == 1 ? theme.accent : theme.dark);
 
     canvas.setTextDatum(top_center);
-    int textY = top + (boxH - 17) / 2;
+    int textY = top + (boxH - 8) / 2;
 
-    canvas.setTextColor(theme.accent);
-    canvas.drawString("ENTER", leftX + boxW / 2, textY);
-    canvas.drawString("to record", leftX + boxW / 2, textY + 10);
+    const uint16_t recordColor = _recordReadySelection == 0 ? TFT_BLACK : theme.accent;
+    const uint16_t importColor = _recordReadySelection == 1 ? TFT_BLACK : theme.accent;
+    canvas.setTextColor(recordColor);
+    canvas.drawString("RECORD", leftX + boxW / 2, textY);
+    canvas.fillRect(leftX + boxW / 2 - 18, textY + 8, 5, 1, recordColor);
 
-    canvas.setTextColor(theme.accent);
-    canvas.drawString("import", rightX + boxW / 2, textY);
-    int iX = rightX + boxW / 2 - (6 * 6) / 2;
-    canvas.fillRect(iX, textY + 8, 5, 1, theme.accent);
-    canvas.drawString("from SD card", rightX + boxW / 2, textY + 10);
+    canvas.setTextColor(importColor);
+    canvas.drawString("IMPORT", rightX + boxW / 2, textY);
+    canvas.fillRect(rightX + boxW / 2 - 18, textY + 8, 5, 1, importColor);
 }
 
 void SoundView::drawCountdown(Canvas& canvas, const Theme& theme) {
@@ -633,6 +788,8 @@ void SoundView::drawRecording(Canvas& canvas, const Theme& theme) {
     canvas.setTextColor(theme.accent);
     canvas.setTextDatum(top_left);
     canvas.drawString("RECORDING", 7, startY);
+
+
 
     char timeStr[8];
     snprintf(timeStr, sizeof(timeStr), "%.1fs", seconds);
@@ -748,9 +905,14 @@ void SoundView::drawTrim(Canvas& canvas, const Theme& theme) {
 
     canvas.setTextColor(theme.dim);
     canvas.setTextDatum(top_center);
-    canvas.drawString("FX", hdrLeft + hdrContentW / 2, waveBottom + 2);
-    int fX = hdrLeft + hdrContentW / 2 - (2 * 6) / 2;
-    canvas.fillRect(fX, waveBottom + 2 + 8, 5, 1, theme.dim);
+#ifdef CARDPUTER_ZERO
+    canvas.drawString("E:FX", hdrLeft + hdrContentW / 2 - 24, waveBottom + 2);
+#else
+    canvas.drawString("FX", hdrLeft + hdrContentW / 2 - 24, waveBottom + 2);
+#endif
+    canvas.setTextDatum(top_left);
+    canvas.setTextColor(slot.normalize ? theme.accent : theme.dim);
+    canvas.drawString("N", hdrLeft + hdrContentW / 2, waveBottom + 2);
 
     char endStr[10];
     snprintf(endStr, sizeof(endStr), "%.2fs", endSec);
@@ -830,9 +992,11 @@ void SoundView::drawFx(Canvas& canvas, const Theme& theme) {
     canvas.setTextDatum(top_left);
     canvas.drawString("TOGGLE:OK", hdrLeft + 4, footerY);
     canvas.setTextDatum(top_center);
-    canvas.drawString("TRIM", hdrLeft + hdrContentW / 2, footerY);
-    int tX = hdrLeft + hdrContentW / 2 - (4 * 6) / 2;
-    canvas.fillRect(tX, footerY + 8, 5, 1, theme.dim);
+    canvas.drawString("T:TRIM", hdrLeft + hdrContentW / 2 - 24, footerY);
+    canvas.setTextColor(slot.normalize ? theme.accent : theme.dim);
+    canvas.setTextDatum(top_left);
+    canvas.drawString("N", hdrLeft + hdrContentW / 2, footerY);
+    canvas.setTextColor(theme.dim);
     canvas.setTextDatum(top_right);
     canvas.drawString("RESET:DEL", hdrLeft + hdrContentW - 4, footerY);
 }
@@ -908,6 +1072,49 @@ void SoundView::drawKnob(Canvas& canvas, int cx, int cy, int r,
 }
 
 void SoundView::drawLoadBrowser(Canvas& canvas, const Theme& theme) {
+#ifdef CARDPUTER_ZERO
+    std::string folder = _browserDirectory.string();
+    if (folder.size() > 49) folder = "..." + folder.substr(folder.size() - 46);
+    canvas.setTextColor(theme.dim);
+    canvas.setTextDatum(top_left);
+    canvas.drawString(folder.empty() ? "/" : folder.c_str(), 12, 23);
+
+    const int listTop = 37;
+    const int itemH = 10;
+    const int visibleItems = (SCREEN_HEIGHT - listTop - 12) / itemH;
+    const int scrollOffset = _browserCursor >= static_cast<size_t>(visibleItems)
+        ? static_cast<int>(_browserCursor) - visibleItems + 1 : 0;
+    if (_browserEntries.empty() ||
+        (_browserEntries.size() == 1 && _browserEntries[0].name == "..")) {
+        canvas.drawString("NO WAV FILES", 12,
+                          listTop + (_browserEntries.empty() ? 0 : itemH));
+    }
+    for (int i = scrollOffset;
+         i < static_cast<int>(_browserEntries.size()) && i - scrollOffset < visibleItems; ++i) {
+        const BrowserEntry& entry = _browserEntries[i];
+        const int y = listTop + (i - scrollOffset) * itemH;
+        canvas.setTextColor(i == static_cast<int>(_browserCursor) ? TFT_WHITE :
+                            entry.directory ? theme.dim : theme.accent);
+        if (i == static_cast<int>(_browserCursor)) canvas.drawString(">", 4, y);
+        std::string label = entry.name + (entry.directory && entry.name != ".." ? "/" : "");
+        if (label.size() > 49) label = label.substr(0, 46) + "...";
+        canvas.drawString(label.c_str(), 12, y);
+        if (!entry.directory && _browserPreviewDuration > 0 &&
+            _browserDirectory / entry.name == _browserPreviewPath) {
+            const uint32_t elapsed = millis() - _browserPreviewStart;
+            if (elapsed < _browserPreviewDuration) {
+                const int sweepLeft = 12;
+                const int sweepWidth = SCREEN_WIDTH - sweepLeft - 8;
+                const int playX = sweepLeft + static_cast<int>(
+                    uint64_t(elapsed) * (sweepWidth - 1) / _browserPreviewDuration);
+                canvas.fillRect(playX, y, 2, 8, TFT_WHITE);
+            }
+        }
+    }
+    canvas.setTextColor(theme.dim);
+    canvas.drawString("LEFT: UP  SPACE: PREVIEW", 12, SCREEN_HEIGHT - 11);
+    return;
+#else
     const int startY = 24;
     const int itemH = 10;
     const int listTop = startY + 4;
@@ -935,6 +1142,7 @@ void SoundView::drawLoadBrowser(Canvas& canvas, const Theme& theme) {
         int thumbY = trackTop + (trackH - thumbH) * scrollOffset / maxScroll;
         canvas.fillRect(SCREEN_WIDTH - 7, thumbY, 3, thumbH, theme.accent);
     }
+#endif
 }
 
 void SoundView::drawRename(Canvas& canvas, const Theme& theme) {
@@ -982,20 +1190,14 @@ void SoundView::drawWaveform(Canvas& canvas, const Theme& theme, int x, int y, i
 
     int midY = y + h / 2;
 
-    int16_t peak = 0;
-    for (int px = 0; px < w; px += 2) {
-        uint32_t sampleIdx = (uint32_t)((float)px / w * slot.length);
-        int16_t val = abs(SoundSlotOps::getSample(slot, sampleIdx));
-        if (val > peak) peak = val;
-    }
-    const int16_t minPeak = 4000;
-    if (peak < minPeak) peak = minPeak;
-
+    // Use a fixed full-scale range so playback boosts are visible instead of
+    // automatically stretching every sample to the same display height.
     float levelScale = slot.level / 100.0f;
     for (int px = 0; px < w; px += 2) {
         uint32_t sampleIdx = (uint32_t)((float)px / w * slot.length);
-        int16_t sampleVal = SoundSlotOps::getSample(slot, sampleIdx);
-        int barH = (int)((float)abs(sampleVal) / peak * (h / 2) * levelScale);
+        int32_t sampleVal = SoundSlotOps::getPlaybackSample(slot, sampleIdx);
+        int32_t magnitude = sampleVal < 0 ? -sampleVal : sampleVal;
+        int barH = (int)((float)magnitude / 32768.0f * (h / 2) * levelScale);
         if (barH < 1) barH = 1;
 
         uint16_t color;
@@ -1021,15 +1223,32 @@ void SoundView::drawWaveform(Canvas& canvas, const Theme& theme, int x, int y, i
     for (int dy = 0; dy < markerH; dy += 4) {
         canvas.fillRect(endPx, markerY + dy, 2, 2, endColor);
     }
+
+    if (_playbackActive && _playbackRate > 0) {
+        const uint64_t audioDurationMs =
+            (uint64_t(_playbackLength) * 1000 + _playbackRate - 1) / _playbackRate;
+        const uint64_t visualDurationMs = audioDurationMs < 300 ? 300 : audioDurationMs;
+        const uint32_t elapsedMs = millis() - _playbackStart;
+        if (elapsedMs >= visualDurationMs) {
+            _playbackActive = false;
+        } else {
+            const uint32_t position = _playbackOffset +
+                static_cast<uint32_t>(uint64_t(elapsedMs) * _playbackLength / visualDurationMs);
+            const int playX = x + static_cast<int>(uint64_t(position) * (w - 1) / slot.length);
+            canvas.fillRect(playX, y, 2, h, TFT_WHITE);
+        }
+    }
 }
 
 void SoundView::startRecording() {
     SoundSlot& slot = _project.sounds[_cursor];
     Audio::stopAll();
     _recordMaxLength = SoundSlotOps::availableSamples(_project.bitDepth, &slot);
+#ifndef CARDPUTER_ZERO
     uint32_t formatMaximum = MAX_SAMPLE_LENGTH *
         (_project.bitDepth == BIT_DEPTH_8 ? 2 : 1);
     if (_recordMaxLength > formatMaximum) _recordMaxLength = formatMaximum;
+#endif
     if (_recordMaxLength < SAMPLE_RATE / 10 ||
         !SoundSlotOps::allocate(slot, _recordMaxLength, _project.bitDepth)) {
         _character.setState(CHAR_DEAD);
@@ -1086,6 +1305,7 @@ void SoundView::applyTrim() {
     }
 
     slot.length = newLen;
+    SoundSlotOps::updateNormalizationGain(slot);
     _project.dirty = true;
 
     SoundSlotOps::shrinkToFit(slot);
@@ -1109,4 +1329,15 @@ void SoundView::triggerSlot(uint8_t index) {
     _character.setState(CHAR_BEAT);
     _flashSlot = index;
     _flashTime = millis();
+}
+
+void SoundView::toggleNormalize() {
+    SoundSlot& slot = _project.sounds[_cursor];
+    if (!slot.occupied) return;
+    Audio::stopAll();
+    _playbackActive = false;
+    slot.normalize = !slot.normalize;
+    SoundSlotOps::updateNormalizationGain(slot);
+    _project.dirty = true;
+    _character.say(slot.normalize ? "normalize on" : "normalize off");
 }

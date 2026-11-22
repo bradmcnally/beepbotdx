@@ -1,6 +1,6 @@
 # beepBot DX
 
-A tiny sampler and sequencer for M5Stack Cardputer/ADV/Zero.
+A tiny sampler and sequencer for M5Stack Cardputer, Cardputer ADV, and Cardputer Zero.
 
 Record sounds with the built-in mic, import WAV files from SD, build patterns, arrange songs, perform, and export.
 
@@ -153,7 +153,7 @@ Place WAV files for import in `/beepbotdx/samples/` on the SD card. Files should
 
 The Cardputer ADV has ~127 KB available for samples — roughly **4 seconds total** shared across all 8 slots (16-bit mono @ 16kHz = 32 KB/s). Recording adapts to available memory, so shorter existing samples leave more room for new ones. Trim recordings and clear unused slots to free space. Press **P** from any screen to see memory usage per slot.
 
-The Cardputer Zero has significantly more memory and  beepBot DX will support up to 10 seconds per sample.
+The Cardputer Zero does not impose a per-sample time limit. Recording and WAV import can use the remaining sample memory; the current shared pool is 10 MiB.
 
 ## Planned Features
 
@@ -197,7 +197,7 @@ The two main files (`main.cpp` and `platform_desktop/main_desktop.cpp`) share ev
 
 ## Building
 
-### Hardware (M5Stack Cardputer/ADV/Zero)
+### Cardputer and Cardputer ADV firmware
 
 Requires [PlatformIO](https://platformio.org/).
 
@@ -206,19 +206,23 @@ pio run -e m5stack-cardputer
 pio run -e m5stack-cardputer -t upload
 ```
 
+### Cardputer Zero
+
+See the [Cardputer Zero guide](platform_zero/README.md) to build the Debian package, launch beepBot DX from HOME, and find the Zero keyboard shortcuts and project folder.
+
 ### Desktop Simulator
 
-Requires SDL2 and SDL2_image.
+Requires SDL2.
 
 ```sh
 # macOS
-brew install cmake pkg-config sdl2 sdl2_image
+brew install cmake pkg-config sdl2
 
 # Build (Cardputer / ADV, 240x135)
-cmake --preset adv && cmake --build build && ./build/beepbotdx
+cmake --preset adv && cmake --build --preset adv && ./build/beepbotdx
 
 # Build (Zero, 320x170)
-cmake --preset zero && cmake --build build_zero && ./build_zero/beepbotdx
+cmake --preset zero && cmake --build --preset zero && ./build_zero/beepbotdx
 ```
 
 ### Tests

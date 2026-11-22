@@ -49,27 +49,28 @@ void ProjectView::enter() {
 
 void ProjectView::update(InputEvent event) {
     if (_confirming) {
-        switch (event) {
-            case INPUT_ENTER:
-                if (Storage::saveProject(_project, _currentSlot)) {
-                    _project.dirty = false;
-                    _confirming = false;
-                    doSwitch();
-                } else {
-                    _character.setState(CHAR_ERROR);
-                    _character.say("save failed");
-                }
-                break;
-            case INPUT_BACK:
+#ifdef CARDPUTER_ZERO
+        const bool save = event == INPUT_CHAR && Input::getChar() == 's';
+        const bool discard = event == INPUT_CHAR && Input::getChar() == 'd';
+#else
+        const bool save = event == INPUT_ENTER;
+        const bool discard = event == INPUT_BACK;
+#endif
+        if (save) {
+            if (Storage::saveProject(_project, _currentSlot)) {
+                _project.dirty = false;
                 _confirming = false;
                 doSwitch();
-                break;
-            case INPUT_ESC:
-                _confirming = false;
-                _character.setState(CHAR_IDLE);
-                break;
-            default:
-                break;
+            } else {
+                _character.setState(CHAR_ERROR);
+                _character.say("save failed");
+            }
+        } else if (discard) {
+            _confirming = false;
+            doSwitch();
+        } else if (event == INPUT_ESC) {
+            _confirming = false;
+            _character.setState(CHAR_IDLE);
         }
         return;
     }
@@ -358,8 +359,13 @@ void ProjectView::draw(Canvas& canvas) {
         canvas.drawString("UNSAVED CHANGES", boxX + boxW / 2, boxY + 16);
 
         canvas.setTextColor(theme.accent);
+#ifdef CARDPUTER_ZERO
+        canvas.drawString("S SAVE  ESC CANCEL", boxX + boxW / 2, boxY + 38);
+        canvas.drawString("D DISCARD", boxX + boxW / 2, boxY + 54);
+#else
         canvas.drawString("SAVE:OK  CANCEL:ESC", boxX + boxW / 2, boxY + 38);
         canvas.drawString("DISCARD:DEL", boxX + boxW / 2, boxY + 54);
+#endif
     }
 
     if (_deleting) {

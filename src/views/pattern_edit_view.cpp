@@ -151,13 +151,33 @@ void PatternEditView::draw(Canvas& canvas) {
     const int gridRight = hdrLeft + hdrContentW - 4;
     const int gridW = gridRight - gridLeft;
 
+#ifdef CARDPUTER_ZERO
+    const int cellGap = 4;
+    const int cellW = 14;
+    const int cellH = 13;
+#else
     const int cellGap = 2;
-    const int cellW = (gridW - (NUM_STEPS - 1) * cellGap) / NUM_STEPS;
     const int cellH = (gridH - (NUM_SOUNDS - 1) * cellGap) / NUM_SOUNDS;
+    const int cellW = cellH;
+#endif
     const int actualW = cellW * NUM_STEPS + (NUM_STEPS - 1) * cellGap;
     const int actualH = cellH * NUM_SOUNDS + (NUM_SOUNDS - 1) * cellGap;
+#ifdef CARDPUTER_ZERO
+    const int gridLeftAdj = gridLeft + (gridW - actualW) / 2 + 10;
+#else
     const int gridLeftAdj = gridLeft + (gridW - actualW) / 2;
+#endif
     const int gridTopY = gridTop + (gridH - actualH) / 2;
+
+    // Slot numbers sit in the left margin, aligned with their grid rows.
+    canvas.setTextDatum(top_left);
+    for (uint8_t y = 0; y < NUM_SOUNDS; y++) {
+        char slotNumber[4];
+        snprintf(slotNumber, sizeof(slotNumber), "%02u", static_cast<unsigned>(y + 1));
+        canvas.setTextColor(_project.sounds[y].occupied ? theme.accent : theme.dim);
+        canvas.drawString(slotNumber, hdrLeft + 4,
+                          gridTopY + y * (cellH + cellGap) + (cellH - 8) / 2);
+    }
 
     // Step grid
     for (uint8_t x = 0; x < NUM_STEPS; x++) {
@@ -172,7 +192,7 @@ void PatternEditView::draw(Canvas& canvas) {
 
             if (active) {
                 uint16_t color = isPlayhead ? TFT_WHITE : NOTE_COLOR;
-                canvas.fillRect(px + 1, py + 1, cellW - 2, cellH - 2, color);
+                canvas.fillRect(px, py, cellW, cellH, color);
             } else if (isPlayhead) {
                 int dotW = cellW / 3;
                 int dotH = cellH / 3;
@@ -181,7 +201,7 @@ void PatternEditView::draw(Canvas& canvas) {
                 canvas.fillRect(px + (cellW - dotW) / 2, py + (cellH - dotH) / 2, dotW, dotH, NOTE_COLOR);
             } else {
                 uint16_t bg = (x % 4 == 0) ? theme.measure : theme.dark;
-                canvas.fillRect(px + 1, py + 1, cellW - 2, cellH - 2, bg);
+                canvas.fillRect(px, py, cellW, cellH, bg);
             }
 
             if (isCursor) {

@@ -17,10 +17,15 @@ struct SoundSlot {
     char name[9];
     uint8_t level; // 0-100 percent
     bool occupied;
+    bool normalize = false;
+    float normalizationGain = 1.0f;
     SlotFx fx;
 };
 
 namespace SoundSlotOps {
+
+// Called before an arena allocation is released or moved.
+void setBeforeArenaMutation(void (*callback)());
 
 void init(SoundSlot& slot);
 bool allocate(SoundSlot& slot, uint32_t maxLength, BitDepth bitDepth = BIT_DEPTH_16);
@@ -31,6 +36,9 @@ uint8_t bytesPerSample(BitDepth bitDepth);
 uint32_t allocatedBytes(const SoundSlot& slot);
 int16_t getSample(const SoundSlot& slot, uint32_t index);
 void setSample(SoundSlot& slot, uint32_t index, int16_t sample);
+// Playback-only boost; stored PCM and mix level remain unchanged.
+void updateNormalizationGain(SoundSlot& slot);
+int16_t getPlaybackSample(const SoundSlot& slot, uint32_t index);
 uint32_t capacityBytes();
 uint32_t usedBytes();
 uint32_t freeBytes();

@@ -1,0 +1,2 @@
+# Allow keypad users to drive ACT without running the app as root.
+ACTION=="add", SUBSYSTEM=="leds", KERNEL=="ACT", RUN+="/bin/chgrp input /sys%p/brightness /sys%p/trigger", RUN+="/bin/chmod g+w /sys%p/brightness /sys%p/trigger"

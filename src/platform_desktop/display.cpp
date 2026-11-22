@@ -1,16 +1,22 @@
 #include "platform/display.h"
 #include "config.h"
 #include <SDL2/SDL.h>
+#ifdef CARDPUTER_ZERO_DEVICE
+#include "native_io.h"
+#endif
 
 static Canvas _canvas;
+#ifndef CARDPUTER_ZERO_DEVICE
 static SDL_Window* _window = nullptr;
 static SDL_Renderer* _renderer = nullptr;
 static SDL_Texture* _texture = nullptr;
 
 static bool _fullscreen = false;
 static const int LCD_SCALE = 2;
+#endif
 
 void Display::init() {
+#ifndef CARDPUTER_ZERO_DEVICE
     SDL_Init(SDL_INIT_VIDEO);
 
     _window = SDL_CreateWindow("beepbot dx",
@@ -24,14 +30,17 @@ void Display::init() {
     _texture = SDL_CreateTexture(_renderer, SDL_PIXELFORMAT_RGB565,
         SDL_TEXTUREACCESS_STREAMING, SCREEN_WIDTH, SCREEN_HEIGHT);
     SDL_SetTextureScaleMode(_texture, SDL_ScaleModeNearest);
+#endif
 
     _canvas.create(SCREEN_WIDTH, SCREEN_HEIGHT);
 }
 
 void Display::toggleFullscreen() {
+#ifndef CARDPUTER_ZERO_DEVICE
     _fullscreen = !_fullscreen;
     SDL_SetWindowFullscreen(_window,
         _fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0);
+#endif
 }
 
 void Display::beginFrame() {
@@ -39,12 +48,16 @@ void Display::beginFrame() {
 }
 
 void Display::endFrame() {
+#ifdef CARDPUTER_ZERO_DEVICE
+    Zero::nativeIo.present(_canvas.buffer());
+#else
     SDL_UpdateTexture(_texture, nullptr, _canvas.buffer(), SCREEN_WIDTH * 2);
 
     SDL_SetRenderDrawColor(_renderer, 20, 20, 22, 255);
     SDL_RenderClear(_renderer);
     SDL_RenderCopy(_renderer, _texture, nullptr, nullptr);
     SDL_RenderPresent(_renderer);
+#endif
 }
 
 Canvas& Display::canvas() {
@@ -52,9 +65,11 @@ Canvas& Display::canvas() {
 }
 
 void Display::shutdown() {
+#ifndef CARDPUTER_ZERO_DEVICE
     SDL_DestroyTexture(_texture);
     SDL_DestroyRenderer(_renderer);
     SDL_DestroyWindow(_window);
+#endif
     SDL_Quit();
 }
 

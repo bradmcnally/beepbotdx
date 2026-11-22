@@ -4,6 +4,11 @@
 #include "core/project.h"
 #include "core/character.h"
 #include "core/bloom_field.h"
+#ifdef CARDPUTER_ZERO
+#include <filesystem>
+#include <string>
+#include <vector>
+#endif
 
 class SoundView : public View {
 public:
@@ -15,6 +20,8 @@ public:
 
     bool inTrim() const { return _subState == STATE_TRIM; }
     bool inFx() const { return _subState == STATE_FX; }
+    bool inRecordReady() const { return _subState == STATE_RECORD_READY; }
+    bool inImportBrowser() const { return _subState == STATE_LOAD_BROWSER; }
     bool inSubView() const { return _subState != STATE_LIST; }
     bool inRename() const { return _subState == STATE_RENAME; }
     uint8_t getCursor() const { return _cursor; }
@@ -40,6 +47,18 @@ private:
     void updateTrim(InputEvent event);
     void updateFx(InputEvent event);
     void updateLoadBrowser(InputEvent event);
+    void openImportBrowser();
+#ifdef CARDPUTER_ZERO
+    void refreshImportBrowser();
+    struct BrowserEntry { std::string name; bool directory; };
+    std::filesystem::path _browserDirectory;
+    std::vector<BrowserEntry> _browserEntries;
+    size_t _browserCursor = 0;
+    SubState _browserReturnState = STATE_LIST;
+    std::filesystem::path _browserPreviewPath;
+    uint32_t _browserPreviewStart = 0;
+    uint32_t _browserPreviewDuration = 0;
+#endif
     void updateRename(InputEvent event);
 
     void drawList(Canvas& canvas, const struct Theme& theme);
@@ -67,8 +86,11 @@ private:
     char _wavFiles[64][32];
     uint8_t _wavFileCount;
     uint8_t _fileCursor;
+    uint8_t _recordReadySelection = 0;
     char _statusMsg[32];
     uint32_t _statusTime;
+
+    void toggleNormalize();
 
     // Trim state
     uint32_t _trimStart;
@@ -101,6 +123,7 @@ private:
 
     // Trim playhead
     uint32_t _playbackStart;
+    uint32_t _playbackOffset;
     uint32_t _playbackLength;
     uint32_t _playbackRate;
     bool _playbackActive;

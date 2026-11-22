@@ -30,7 +30,7 @@ void App::loadSlot(uint8_t slot) {
     _currentProjectSlot = slot;
     Storage::loadProject(_project, slot);
     _project.dirty = false;
-    if (_settings.ledMode != LED_OFF) {
+    if (ledShowsIdleColor(_settings.ledMode)) {
         uint8_t r, g, b;
         ThemeOps::getPresetRGB(_project.themeIndex, r, g, b);
         LED::setColor(r, g, b);
@@ -74,7 +74,9 @@ void App::onStep(uint8_t step) {
     }
 
     // LED
+#ifndef CARDPUTER_ZERO
     if (app->_lowBattery) return;
+#endif
     if (app->_settings.ledMode == LED_OFF) return;
     app->_ledPlaying = true;
     if (step % 4 == 0) {
@@ -105,9 +107,12 @@ void App::tick() {
     _character.tick();
     Audio::update();
 
-    if (!_lowBattery && Power::getBatteryPercent() <= 10) {
+    const int battery = Power::getBatteryPercent();
+    if (!_lowBattery && battery >= 0 && battery <= 10) {
         _lowBattery = true;
+#ifndef CARDPUTER_ZERO
         LED::setColor(255, 0, 0);
+#endif
     }
 
     if (Audio::isRecording()) {
@@ -116,10 +121,14 @@ void App::tick() {
 
     _sequencer.tick(millis());
 
-    if (_ledPlaying && !_sequencer.isPlaying() && !_lowBattery) {
+    if (_ledPlaying && !_sequencer.isPlaying()
+#ifndef CARDPUTER_ZERO
+        && !_lowBattery
+#endif
+    ) {
         _ledPlaying = false;
         _danceStyle = 0xFF;
-        if (_settings.ledMode != LED_OFF) {
+        if (ledShowsIdleColor(_settings.ledMode)) {
             uint8_t r, g, b;
             ThemeOps::getPresetRGB(_project.themeIndex, r, g, b);
             LED::setColor(r, g, b);
@@ -128,7 +137,37 @@ void App::tick() {
         }
     }
 
+    const bool textInput = (_currentScreen == SCREEN_SOUND && _soundView.inRename())
+                        || (_currentScreen == SCREEN_PROJECT && _projectView.inRename())
+                        || (_currentScreen == SCREEN_PROJECT_INFO && _projectInfoView.inRename());
+    Input::setTextMode(textInput);
     InputEvent event = Input::poll();
+
+#ifdef CARDPUTER_ZERO_DEVICE
+    const int homeSeconds = Input::homeSecondsRemaining();
+    if (homeSeconds != _homeCountdownSeconds) {
+        if (homeSeconds > 0) {
+            char message[16];
+            snprintf(message, sizeof(message), "EXIT IN %d", homeSeconds);
+            _character.say(message);
+        } else if (_homeCountdownSeconds > 0) {
+            _character.say("");
+        }
+        _homeCountdownSeconds = homeSeconds;
+    }
+    if (event == INPUT_HOME) {
+        handleQuit(INPUT_NONE);
+        if (!_quitRequested) render();
+        return;
+    }
+#endif
+#ifdef CARDPUTER_ZERO
+    if (_confirmQuit || (!textInput && event == INPUT_CHAR && Input::getChar() == 'q')) {
+        handleQuit(event);
+        if (!_quitRequested) render();
+        return;
+    }
+#endif
 
     if (event != INPUT_NONE) {
         if (_character.isSleeping()) {
@@ -138,7 +177,7 @@ void App::tick() {
         }
     }
 
-    handleGlobalInput(event);
+    handleGlobalInput(event, textInput);
 
     View* view = getView(_currentScreen);
     view->update(event);
@@ -147,11 +186,78 @@ void App::tick() {
     render();
 }
 
-void App::handleGlobalInput(InputEvent& event) {
-    bool textInput = (_currentScreen == SCREEN_SOUND && _soundView.inRename())
-                  || (_currentScreen == SCREEN_PROJECT && _projectView.inRename());
-    Input::setTextMode(textInput);
+bool App::saveCurrentProject() {
+    if (!Storage::saveProject(_project, _currentProjectSlot)) return false;
+    _project.dirty = false;
+    if (_callbacks.saveSlot) _callbacks.saveSlot(_currentProjectSlot);
+    return true;
+}
 
+bool App::exportCurrentSong() {
+    char path[64];
+    if (_project.name[0])
+        snprintf(path, sizeof(path), "/beepbotdx/%s.wav", _project.name);
+    else
+        snprintf(path, sizeof(path), "/beepbotdx/export_%d.wav", _currentProjectSlot + 1);
+    return Storage::renderSongToWav(_project, path);
+}
+
+void App::showBrightness() {
+    char message[12];
+    snprintf(message, sizeof(message), "bright %u%%", static_cast<unsigned>(_brightness));
+    _character.say(message);
+}
+
+#ifdef CARDPUTER_ZERO
+void App::handleQuit(InputEvent event) {
+    if (!_confirmQuit) {
+        if (Audio::isRecording()) {
+            _character.say("stop rec first");
+        } else if (_project.dirty) {
+            _confirmQuit = true;
+            _quitSaveFailed = false;
+        } else {
+            _quitRequested = true;
+        }
+        return;
+    }
+
+    if (event == INPUT_ESC) {
+        _confirmQuit = false;
+    } else if (event == INPUT_CHAR && Input::getChar() == 'd') {
+        _quitRequested = true;
+    } else if (event == INPUT_CHAR && Input::getChar() == 's') {
+        _quitRequested = saveCurrentProject();
+        _quitSaveFailed = !_quitRequested;
+    }
+}
+
+void App::drawQuitPrompt(Canvas& canvas, const Theme& theme) {
+    canvas.darken();
+    constexpr int width = 184;
+    constexpr int height = 48;
+    constexpr int x = (SCREEN_WIDTH - width) / 2;
+    constexpr int y = (SCREEN_HEIGHT - height) / 2;
+    canvas.fillRect(x, y, width, height, TFT_BLACK);
+    canvas.drawRect(x, y, width, height, theme.accent);
+    canvas.setTextSize(1);
+    canvas.setTextDatum(top_center);
+    canvas.setTextColor(TFT_WHITE);
+    canvas.drawString(_quitSaveFailed ? "SAVE FAILED" : "SAVE BEFORE QUITTING?", SCREEN_WIDTH / 2, y + 11);
+    canvas.setTextColor(theme.accent);
+    canvas.drawString("S SAVE  D DISCARD  ESC CANCEL", SCREEN_WIDTH / 2, y + 29);
+}
+#endif
+
+void App::handleGlobalInput(InputEvent& event, bool textInput) {
+#ifdef CARDPUTER_ZERO_DEVICE
+    if (event == INPUT_BRIGHTNESS) {
+        _brightness = Input::brightnessPercent();
+        showBrightness();
+        event = INPUT_NONE;
+        return;
+    }
+#endif
     // Help overlay consumes input when open (except screenshot)
     if (_helpOpen && event != INPUT_NONE) {
         if (event == INPUT_CHAR && Input::getChar() == 'y') {
@@ -164,10 +270,14 @@ void App::handleGlobalInput(InputEvent& event) {
             if (_helpCursor < _helpTotal - 1) _helpCursor++;
             event = INPUT_NONE;
             return;
-        } else {
+        } else if (event == INPUT_ESC ||
+                   (event == INPUT_CHAR && Input::getChar() == 'h')) {
             _helpOpen = false;
             _helpCursor = 0;
             _helpScroll = 0;
+            event = INPUT_NONE;
+            return;
+        } else {
             event = INPUT_NONE;
             return;
         }
@@ -187,17 +297,16 @@ void App::handleGlobalInput(InputEvent& event) {
     }
 
     // H key opens help
-    if (event == INPUT_CHAR && Input::getChar() == 'h'
-        && _currentScreen != SCREEN_PROJECT
-        && _currentScreen != SCREEN_SETTINGS) {
+    if (event == INPUT_CHAR && Input::getChar() == 'h') {
         _helpOpen = true;
+        _helpCursor = 0;
         _helpScroll = 0;
         event = INPUT_NONE;
         return;
     }
 
-    // F key flips table (unless on sound screen where it opens FX)
-    if (event == INPUT_CHAR && Input::getChar() == 'f'
+    // Table flip is available outside Sound and Projects.
+    if (event == INPUT_CHAR && Input::getChar() == TABLE_FLIP_SHORTCUT
         && _currentScreen != SCREEN_PROJECT
         && _currentScreen != SCREEN_SOUND) {
         _character.setState(CHAR_FLIP);
@@ -210,9 +319,7 @@ void App::handleGlobalInput(InputEvent& event) {
         && _currentScreen != SCREEN_PROJECT) {
         _character.setState(CHAR_SAVING);
         _character.say("saving...");
-        if (Storage::saveProject(_project, _currentProjectSlot)) {
-            _project.dirty = false;
-            if (_callbacks.saveSlot) _callbacks.saveSlot(_currentProjectSlot);
+        if (saveCurrentProject()) {
             _character.setState(CHAR_SUCCESS);
             _character.say("saved!");
         } else {
@@ -236,7 +343,8 @@ void App::handleGlobalInput(InputEvent& event) {
     // G key opens settings
     if (event == INPUT_CHAR && Input::getChar() == 'g'
         && _currentScreen != SCREEN_PROJECT
-        && _currentScreen != SCREEN_SETTINGS) {
+        && _currentScreen != SCREEN_SETTINGS
+        && !(_currentScreen == SCREEN_SOUND && _soundView.inRecordReady())) {
         _screenBeforeSettings = _currentScreen;
         switchScreen(SCREEN_SETTINGS);
         event = INPUT_NONE;
@@ -256,10 +364,14 @@ void App::handleGlobalInput(InputEvent& event) {
     // M key cycles LED mode
     if (event == INPUT_CHAR && Input::getChar() == 'm'
         && _currentScreen != SCREEN_SETTINGS) {
-        _settings.ledMode = (LedMode)((_settings.ledMode + 1) % 3);
+        _settings.ledMode = nextLedMode(_settings.ledMode);
+#ifdef CARDPUTER_ZERO
+        const char* names[] = {"metro on", "metro on", "metro off"};
+#else
         const char* names[] = {"led on", "led metro", "led off"};
+#endif
         _character.say(names[_settings.ledMode]);
-        if (_settings.ledMode == LED_OFF) {
+        if (!ledShowsIdleColor(_settings.ledMode)) {
             LED::off();
         } else {
             uint8_t r, g, b;
@@ -276,13 +388,7 @@ void App::handleGlobalInput(InputEvent& event) {
         && (_currentScreen == SCREEN_SONG || _currentScreen == SCREEN_PLAY)) {
         _character.setState(CHAR_SAVING);
         _character.say("rendering...");
-        char path[64];
-        if (_project.name[0]) {
-            snprintf(path, sizeof(path), "/beepbotdx/%s.wav", _project.name);
-        } else {
-            snprintf(path, sizeof(path), "/beepbotdx/export_%d.wav", _currentProjectSlot + 1);
-        }
-        if (Storage::renderSongToWav(_project, path)) {
+        if (exportCurrentSong()) {
             _character.setState(CHAR_SUCCESS);
             _character.say("exported!");
         } else {
@@ -293,6 +399,7 @@ void App::handleGlobalInput(InputEvent& event) {
         return;
     }
 
+#ifndef CARDPUTER_ZERO_DEVICE
     // N+plus/minus adjusts brightness
     if ((event == INPUT_PLUS || event == INPUT_MINUS) && Input::isNHeld()) {
         if (event == INPUT_PLUS) {
@@ -301,18 +408,22 @@ void App::handleGlobalInput(InputEvent& event) {
             _brightness = _brightness >= 20 ? _brightness - 10 : 10;
         }
         if (_callbacks.setBrightness) _callbacks.setBrightness(_brightness);
-        char msg[12];
-        snprintf(msg, sizeof(msg), "bright %d%%", _brightness);
-        _character.say(msg);
+        showBrightness();
         event = INPUT_NONE;
         return;
     }
+#endif
 
-    // L+/- adjusts sample level (in trim or FX)
-    if ((event == INPUT_PLUS || event == INPUT_MINUS) && Input::isLHeld()
+    // Level has its own shortcut; the Zero's Fn+S/D always remains master volume.
+    if (
+#ifdef CARDPUTER_ZERO
+        (event == INPUT_LEVEL_DOWN || event == INPUT_LEVEL_UP)
+#else
+        ((event == INPUT_PLUS || event == INPUT_MINUS) && Input::isLHeld())
+#endif
         && _currentScreen == SCREEN_SOUND && (_soundView.inTrim() || _soundView.inFx())) {
         SoundSlot& slot = _project.sounds[_soundView.getCursor()];
-        if (event == INPUT_PLUS) {
+        if (event == INPUT_PLUS || event == INPUT_LEVEL_UP) {
             if (slot.level <= 95) slot.level += 5;
             else slot.level = 100;
         } else {
@@ -333,6 +444,17 @@ void App::handleGlobalInput(InputEvent& event) {
             snprintf(bpmMsg, sizeof(bpmMsg), "bpm %d", _project.bpm);
             _character.say(bpmMsg);
         } else {
+#ifdef CARDPUTER_ZERO_DEVICE
+            const int percent = Audio::adjustSystemVolume(event == INPUT_PLUS);
+            if (percent < 0) {
+                _character.setState(CHAR_ERROR);
+                _character.say("volume unavailable");
+            } else {
+                char volMsg[16];
+                snprintf(volMsg, sizeof(volMsg), "vol %d%%", percent);
+                _character.say(volMsg);
+            }
+#else
             uint8_t vol = Audio::getVolume();
             if (event == INPUT_PLUS) {
                 vol = vol <= 245 ? vol + 10 : 255;
@@ -343,6 +465,7 @@ void App::handleGlobalInput(InputEvent& event) {
             char volMsg[8];
             snprintf(volMsg, sizeof(volMsg), "vol %d", vol * 100 / 255);
             _character.say(volMsg);
+#endif
         }
         event = INPUT_NONE;
         return;
@@ -405,7 +528,7 @@ void App::handleTransitions() {
         } else if (_projectView.didLoad()) {
             _projectView.clearLoad();
             _project.dirty = false;
-            if (_settings.ledMode != LED_OFF) {
+            if (ledShowsIdleColor(_settings.ledMode)) {
                 uint8_t r, g, b;
                 ThemeOps::getPresetRGB(_project.themeIndex, r, g, b);
                 LED::setColor(r, g, b);
@@ -426,6 +549,20 @@ void App::handleTransitions() {
     }
 
     if (_currentScreen == SCREEN_PROJECT_INFO) {
+        if (_projectInfoView.saveRequested()) {
+            _projectInfoView.clearSaveRequest();
+            const bool saved = saveCurrentProject();
+            _projectInfoView.showActionResult(false, saved);
+            _character.setState(saved ? CHAR_SUCCESS : CHAR_ERROR);
+            _character.say(saved ? "saved!" : "save failed");
+        }
+        if (_projectInfoView.exportRequested()) {
+            _projectInfoView.clearExportRequest();
+            const bool exported = exportCurrentSong();
+            _projectInfoView.showActionResult(true, exported);
+            _character.setState(exported ? CHAR_SUCCESS : CHAR_ERROR);
+            _character.say(exported ? "exported!" : "export failed");
+        }
         if (_projectInfoView.shouldClose()) {
             _projectInfoView.clearClose();
             switchScreen(_screenBeforeProjectInfo);
@@ -469,7 +606,9 @@ void App::render() {
 
     if (_helpOpen) drawHelp(canvas, theme);
     if (_tabMenuVisible) drawTabMenu(canvas, theme);
-
+#ifdef CARDPUTER_ZERO
+    if (_confirmQuit) drawQuitPrompt(canvas, theme);
+#endif
     Display::endFrame();
 }
 
@@ -499,7 +638,8 @@ void App::drawHeader(Canvas& canvas, const Theme& theme) {
     char titleBuf[16];
     switch (_currentScreen) {
         case SCREEN_PROJECT_INFO:
-            title = "PROJECT";
+            snprintf(titleBuf, sizeof(titleBuf), "PROJ %02d", _currentProjectSlot + 1);
+            title = titleBuf;
             break;
         case SCREEN_SOUND:
             if (_soundView.inSubView()) {
@@ -556,10 +696,13 @@ void App::drawHeader(Canvas& canvas, const Theme& theme) {
     }
 
     // Battery (right)
-    char batStr[6];
-    snprintf(batStr, sizeof(batStr), "%d%%", Power::getBatteryPercent());
-    canvas.setTextDatum(top_right);
-    canvas.drawString(batStr, hdrLeft + hdrContentW - 4, 7);
+    const int battery = Power::getBatteryPercent();
+    if (battery >= 0) {
+        char batStr[6];
+        snprintf(batStr, sizeof(batStr), "%u%%", static_cast<unsigned>(battery));
+        canvas.setTextDatum(top_right);
+        canvas.drawString(batStr, hdrLeft + hdrContentW - 4, 7);
+    }
 }
 
 struct HelpLine { const char* key; const char* action; };
@@ -569,36 +712,92 @@ void App::drawHelp(Canvas& canvas, const Theme& theme) {
 
     canvas.setTextSize(1);
 
+#ifdef CARDPUTER_ZERO
+    static constexpr const char* confirmKey = "ENTER";
+    static constexpr const char* recordKey = "Fn+B";
+    static constexpr const char* copyKey = "CTRL+C";
+    static constexpr const char* pasteKey = "CTRL+V";
+    static constexpr const char* songCycleKeys = "Fn+K/N";
+#else
+    static constexpr const char* confirmKey = "CTRL/OK";
+    static constexpr const char* recordKey = "G0";
+    static constexpr const char* copyKey = "Fn C";
+    static constexpr const char* pasteKey = "Fn V";
+    static constexpr const char* songCycleKeys = "[/]";
+#endif
+#ifdef CARDPUTER_ZERO_DEVICE
+    static constexpr const char* volumeKeys = "Fn+S/D";
+    static constexpr const char* levelKeys = "CTRL+J/K";
+    static constexpr const char* brightnessKeys = "Fn+U/I";
+#else
+    static constexpr const char* volumeKeys = "+/-";
+#ifdef CARDPUTER_ZERO
+    static constexpr const char* levelKeys = "CTRL+J/K";
+#else
+    static constexpr const char* levelKeys = "L +/-";
+#endif
+    static constexpr const char* brightnessKeys = "N +/-";
+#endif
     static const HelpLine soundHelp[] = {
-        {"CTRL/OK", "Select"}, {"G0", "Hold to record"}, {"SPACE", "Audition"},
-        {"DEL", "Clear"}, {"I", "Import wav"}, {"R", "Rename"}, {"F", "FX"}, {"T", "Trim"},
+        {confirmKey, "Select"}, {recordKey, "Hold to record"}, {"SPACE", "Audition"},
+        {"DEL", "Clear"}, {"I", "Import wav"}, {"R", "Rename"}, {FX_SHORTCUT_LABEL, "FX"}, {"T", "Trim"}, {"N", "Normalize on/off"},
     };
+#ifdef CARDPUTER_ZERO
+    static const HelpLine recordReadyHelp[] = {
+        {"L/R", "Select action"}, {confirmKey, "Choose action"},
+        {"R", "Record"}, {"I", "Import"}, {"ESC", "Back"},
+    };
+    static const HelpLine importHelp[] = {
+        {"U/D", "Select file"}, {"L/BKSP", "Parent folder"},
+        {confirmKey, "Open/import"}, {"SPACE", "Preview"}, {"ESC", "Back"},
+    };
+#endif
     static const HelpLine trimHelp[] = {
-        {"L/R", "Adjust point"}, {"U/D", "Switch start/end"}, {"SPACE", "Audition"},
-        {"L +/-", "Level"}, {"CTRL/OK", "Apply"}, {"ESC", "Cancel"},
+        {"L/R", "Adjust point"}, {"U/D", "Start/end"}, {"SPACE", "Audition"},
+        {levelKeys, "Level"}, {confirmKey, "Apply"}, {"ESC", "Cancel"},
+        {FX_SHORTCUT_LABEL, "Open FX"}, {"N", "Normalize on/off"},
     };
     static const HelpLine fxHelp[] = {
-        {"L/R", "Select FX"}, {"U/D", "Adjust value"}, {"CTRL/OK", "Toggle on/off"},
-        {"SPACE", "Audition"}, {"L +/-", "Level"}, {"DEL", "Reset"}, {"ESC", "Back"},
+        {"L/R", "Select FX"}, {"U/D", "Adjust value"}, {confirmKey, "Toggle on/off"},
+        {"SPACE", "Audition"}, {levelKeys, "Level"}, {"DEL", "Reset"}, {"N", "Normalize on/off"}, {"ESC", "Back"},
     };
     static const HelpLine patSelectHelp[] = {
-        {"CTRL/OK", "Edit"}, {"SPACE", "Audition"}, {"DEL", "Clear"},
-        {"Fn C", "Copy"}, {"Fn V", "Paste"},
+        {confirmKey, "Edit"}, {"SPACE", "Audition"}, {"DEL", "Clear"},
+        {copyKey, "Copy"}, {pasteKey, "Paste"},
     };
     static const HelpLine patEditHelp[] = {
-        {"CTRL/OK", "Toggle step"}, {"SPACE", "Play/stop"}, {"ESC", "Back"},
+        {confirmKey, "Toggle step"}, {"SPACE", "Play/stop"}, {"ESC", "Back"},
         {"1-8", "Audition"}, {"Fn 1-8", "Live record"},
     };
     static const HelpLine songHelp[] = {
-        {"CTRL/OK", "Edit pattern"}, {"SPACE", "Play song"}, {"DEL", "Clear slot"},
-        {"[/]", "Cycle pattern"}, {"E", "Export wav"},
+        {confirmKey, "Edit pattern"}, {"SPACE", "Play song"}, {"DEL", "Clear slot"},
+        {songCycleKeys, "Cycle pattern"}, {"E", "Export wav"},
     };
     static const HelpLine playHelp[] = {
         {"SPACE", "Play/stop"}, {"1-8", "Audition"}, {"E", "Export wav"},
     };
+    static const HelpLine projectInfoHelp[] = {
+        {confirmKey, "Edit/select"}, {"L/R", "Change value"}, {"ESC", "Back"},
+    };
+    static const HelpLine projectPickerHelp[] = {
+        {confirmKey, "Open project"}, {"R", "Rename"}, {"DEL", "Delete"},
+        {"E", "Export WAV"}, {"ESC", "Back"},
+    };
+    static const HelpLine settingsHelp[] = {
+        {"U/D", "Select setting"}, {"L/R", "Change value"},
+        {confirmKey, "Toggle/next"}, {"ESC", "Back"},
+    };
     static const HelpLine globals[] = {
-        {"S", "Save proj"}, {"O", "Open proj"}, {"G", "Settings"}, {"M", "LED mode"}, {"F", "Table flip"},
-        {"+/-", "Volume"}, {"B +/-", "BPM"}, {"N +/-", "Brightness"}, {"TAB", "Navigate"}, {"TAB ^/v ", "Menu"},
+        {"S", "Save proj"}, {"O", "Open proj"}, {"P", "Project"}, {"G", "Settings"}, {TABLE_FLIP_SHORTCUT_LABEL, "Table flip"},
+        {volumeKeys, "Volume"}, {"B +/-", "BPM"}, {brightnessKeys, "Brightness"}, {"TAB", "Navigate"},
+#ifdef CARDPUTER_ZERO
+        {"Tab FZXC", "Menu"}, {"M", "Metronome"}, {"Q", "Quit"},
+#ifdef CARDPUTER_ZERO_DEVICE
+        {"HOLD ESC", "HOME"},
+#endif
+#else
+        {"TAB ^/v ", "Menu"}, {"M", "LED mode"},
+#endif
     };
 
     const HelpLine* lines = nullptr;
@@ -609,11 +808,17 @@ void App::drawHelp(Canvas& canvas, const Theme& theme) {
     switch (_currentScreen) {
         case SCREEN_SOUND:
             if (_soundView.inTrim()) {
-                lines = trimHelp; lineCount = 6; screenTitle = "TRIM"; showGlobals = false;
+                lines = trimHelp; lineCount = sizeof(trimHelp) / sizeof(trimHelp[0]); screenTitle = "TRIM"; showGlobals = false;
             } else if (_soundView.inFx()) {
-                lines = fxHelp; lineCount = 7; screenTitle = "FX"; showGlobals = false;
+                lines = fxHelp; lineCount = sizeof(fxHelp) / sizeof(fxHelp[0]); screenTitle = "FX"; showGlobals = false;
+#ifdef CARDPUTER_ZERO
+            } else if (_soundView.inRecordReady()) {
+                lines = recordReadyHelp; lineCount = sizeof(recordReadyHelp) / sizeof(recordReadyHelp[0]); screenTitle = "RECORD"; showGlobals = false;
+            } else if (_soundView.inImportBrowser()) {
+                lines = importHelp; lineCount = 5; screenTitle = "IMPORT"; showGlobals = false;
+#endif
             } else {
-                lines = soundHelp; lineCount = 8; screenTitle = "SOUND";
+                lines = soundHelp; lineCount = sizeof(soundHelp) / sizeof(soundHelp[0]); screenTitle = "SOUND";
             }
             break;
         case SCREEN_PATTERN_SELECT:
@@ -624,6 +829,12 @@ void App::drawHelp(Canvas& canvas, const Theme& theme) {
             lines = songHelp; lineCount = 5; screenTitle = "SONG"; break;
         case SCREEN_PLAY:
             lines = playHelp; lineCount = 3; screenTitle = "PLAY"; break;
+        case SCREEN_PROJECT_INFO:
+            lines = projectInfoHelp; lineCount = 3; screenTitle = "PROJECT"; showGlobals = false; break;
+        case SCREEN_PROJECT:
+            lines = projectPickerHelp; lineCount = 5; screenTitle = "PROJECTS"; showGlobals = false; break;
+        case SCREEN_SETTINGS:
+            lines = settingsHelp; lineCount = 4; screenTitle = "SETTINGS"; showGlobals = false; break;
         default: return;
     }
 
@@ -639,12 +850,20 @@ void App::drawHelp(Canvas& canvas, const Theme& theme) {
     }
     _helpTotal = allCount;
 
-    const int startY = 28;
-    const int lineHeight = 11;
-    const int selectedLineHeight = 11;
+#ifdef CARDPUTER_ZERO
+    const int startY = 18;
+    const int lineHeight = 14;
+    const int selectedLineHeight = 24;
     const int groupGap = 8;
+    const int labelX = SCREEN_WIDTH / 20 > 12 ? SCREEN_WIDTH / 20 : 12;
+#else
+    const int startY = 22;
+    const int lineHeight = 13;
+    const int selectedLineHeight = 13;
+    const int groupGap = 10;
     const int labelX = 14;
-    const int keyX = SCREEN_WIDTH - 14;
+#endif
+    const int keyX = SCREEN_WIDTH * 13 / 20 - 16;
 
     // Auto-scroll to keep cursor visible
     if (_helpCursor < _helpScroll) _helpScroll = _helpCursor;
@@ -654,49 +873,52 @@ void App::drawHelp(Canvas& canvas, const Theme& theme) {
             if (i == globalStart && i > _helpScroll) y += groupGap;
             y += (i == _helpCursor) ? selectedLineHeight : lineHeight;
         }
-        if (y <= SCREEN_HEIGHT - 10) break;
+        if (y <= SCREEN_HEIGHT) break;
         _helpScroll++;
     }
 
     // Title
-    canvas.setTextColor(theme.accent);
+    canvas.setTextColor(TFT_WHITE);
     canvas.setTextDatum(top_left);
-    canvas.drawString("HELP", 7, 7);
+    canvas.drawString("HELP > ", 4, 4);
+    canvas.drawString(showGlobals && _helpCursor >= globalStart ? "GENERAL" : screenTitle, 4 + 7 * 6, 4);
 
     // Draw rows
     int y = startY;
     for (int i = _helpScroll; i < allCount; i++) {
         if (i == globalStart && i > _helpScroll) y += groupGap;
-        if (y >= SCREEN_HEIGHT - 4) break;
+        if (y >= SCREEN_HEIGHT) break;
 
         bool selected = (i == _helpCursor);
         int textY = y;
 
         canvas.setTextSize(1);
-        uint16_t color = selected ? TFT_WHITE : theme.accent;
+        uint16_t color = selected ? TFT_WHITE : theme.dim;
 
         canvas.setTextColor(color);
         canvas.setTextDatum(top_left);
-        if (selected) canvas.drawString(">", labelX - 8, textY);
+        if (selected) {
+#ifdef CARDPUTER_ZERO
+            canvas.setTextSize(2);
+            textY += 4;
+#endif
+        }
         canvas.drawString(allItems[i]->action, labelX, textY);
 
         canvas.setTextColor(color);
         canvas.setTextDatum(top_left);
-        canvas.drawString(allItems[i]->key, 140, textY);
+#ifdef CARDPUTER_ZERO
+        canvas.setTextSize(selected ? 2 : 1);
+#else
+        canvas.setTextSize(1);
+#endif
+        canvas.drawString(allItems[i]->key, keyX, textY);
 
         y += selected ? selectedLineHeight : lineHeight;
     }
 
     canvas.setTextSize(1);
 
-    if (allCount > 0) {
-        const int trackTop = startY;
-        const int trackH = SCREEN_HEIGHT - startY - 10;
-        int thumbH = trackH / allCount;
-        if (thumbH < 6) thumbH = 6;
-        int thumbY = trackTop + (trackH - thumbH) * _helpCursor / (allCount - 1);
-        canvas.fillRect(SCREEN_WIDTH - 3, thumbY, 3, thumbH, theme.accent);
-    }
 }
 
 void App::drawTabMenu(Canvas& canvas, const Theme& theme) {
@@ -748,8 +970,7 @@ View* App::getView(Screen s) {
 
 void App::switchScreen(Screen s) {
     if (_settings.autoSave && _currentScreen != SCREEN_PROJECT && _currentScreen != SCREEN_SETTINGS) {
-        Storage::saveProject(_project, _currentProjectSlot);
-        _project.dirty = false;
+        if (Storage::saveProject(_project, _currentProjectSlot)) _project.dirty = false;
     }
     getView(_currentScreen)->exit();
     _currentScreen = s;

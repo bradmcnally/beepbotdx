@@ -16,6 +16,7 @@ struct ArenaAllocation {
 ArenaAllocation allocations[MAX_ARENA_ALLOCATIONS] = {};
 uint8_t allocationCount = 0;
 uint32_t arenaUsed = 0;
+void (*beforeArenaMutation)() = nullptr;
 
 uint32_t alignedBytes(uint32_t bytes) {
     return (bytes + alignof(int16_t) - 1) & ~(alignof(int16_t) - 1);
@@ -64,6 +65,10 @@ void releaseAllocation(SoundSlot& slot) {
 namespace Memory { void trackAlloc(uint32_t) {} void trackFree(uint32_t) {} }
 #endif
 
+void SoundSlotOps::setBeforeArenaMutation(void (*callback)()) {
+    beforeArenaMutation = callback;
+}
+
 void SoundSlotOps::init(SoundSlot& slot) {
     slot.samples = nullptr;
     slot.length = 0;
@@ -73,6 +78,8 @@ void SoundSlotOps::init(SoundSlot& slot) {
     slot.name[0] = '\0';
     slot.level = 100;
     slot.occupied = false;
+    slot.normalize = false;
+    slot.normalizationGain = 1.0f;
     SlotFxOps::defaults(slot.fx);
 }
 
@@ -119,6 +126,7 @@ bool SoundSlotOps::shrinkToFit(SoundSlot& slot) {
     uint32_t released = allocations[index].size - bytes;
     if (released == 0) return true;
 
+    if (beforeArenaMutation) beforeArenaMutation();
     uint32_t tailOffset = allocations[index].offset + allocations[index].size;
     uint32_t tailSize = arenaUsed - tailOffset;
     if (tailSize > 0) {
@@ -138,6 +146,7 @@ bool SoundSlotOps::shrinkToFit(SoundSlot& slot) {
 
 void SoundSlotOps::free(SoundSlot& slot) {
     if (findAllocation(slot) >= 0) {
+        if (beforeArenaMutation) beforeArenaMutation();
         Memory::trackFree(allocatedBytes(slot));
     }
     releaseAllocation(slot);
@@ -145,6 +154,8 @@ void SoundSlotOps::free(SoundSlot& slot) {
     slot.length = 0;
     slot.allocLength = 0;
     slot.occupied = false;
+    slot.normalize = false;
+    slot.normalizationGain = 1.0f;
 }
 
 void SoundSlotOps::setName(SoundSlot& slot, const char* name) {
@@ -173,6 +184,30 @@ void SoundSlotOps::setSample(SoundSlot& slot, uint32_t index, int16_t sample) {
     } else {
         slot.samples[index] = sample;
     }
+}
+
+void SoundSlotOps::updateNormalizationGain(SoundSlot& slot) {
+    slot.normalizationGain = 1.0f;
+    if (!slot.samples || !slot.normalize) return;
+    int32_t positive = 0, negative = 0;
+    for (uint32_t i = 0; i < slot.length; ++i) {
+        const int32_t sample = getSample(slot, i);
+        if (sample > positive) positive = sample;
+        if (-sample > negative) negative = -sample;
+    }
+    if (positive == 0 && negative == 0) return;
+    float gain = positive ? 32767.0f / positive : 32768.0f / negative;
+    if (negative && 32768.0f / negative < gain) gain = 32768.0f / negative;
+    slot.normalizationGain = gain;
+}
+
+int16_t SoundSlotOps::getPlaybackSample(const SoundSlot& slot, uint32_t index) {
+    const int16_t sample = getSample(slot, index);
+    if (!slot.normalize) return sample;
+    const float amplified = sample * slot.normalizationGain;
+    if (amplified >= 32767.0f) return 32767;
+    if (amplified <= -32768.0f) return -32768;
+    return static_cast<int16_t>(amplified + (amplified >= 0 ? 0.5f : -0.5f));
 }
 
 uint32_t SoundSlotOps::capacityBytes() {

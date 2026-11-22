@@ -31,19 +31,19 @@ void SettingsView::update(InputEvent event) {
                 _settings.autoSave = !_settings.autoSave;
                 _character.say(_settings.autoSave ? "on" : "off");
             } else if (_cursor == 1) {
-                if (event == INPUT_LEFT) {
-                    _settings.ledMode = (LedMode)((_settings.ledMode + 2) % 3);
-                } else {
-                    _settings.ledMode = (LedMode)((_settings.ledMode + 1) % 3);
-                }
-                if (_settings.ledMode == LED_OFF) {
+                _settings.ledMode = nextLedMode(_settings.ledMode, event == INPUT_LEFT);
+                if (!ledShowsIdleColor(_settings.ledMode)) {
                     LED::off();
                 } else {
                     uint8_t r, g, b;
                     ThemeOps::getPresetRGB(_project.themeIndex, r, g, b);
                     LED::setColor(r, g, b);
                 }
+#ifdef CARDPUTER_ZERO
+                const char* names[] = {"on", "on", "off"};
+#else
                 const char* names[] = {"on", "beat", "off"};
+#endif
                 _character.say(names[_settings.ledMode]);
             } else if (_cursor == 2) {
                 _settings.confirmDelete = !_settings.confirmDelete;
@@ -74,11 +74,21 @@ void SettingsView::draw(Canvas& canvas) {
     const int labelX = 7;
     const int valueX = 140;
 
-    const char* labels[] = {"AUTO-SAVE", "LED MODE", "CONFIRM DEL", "BOOT", "SHAKE GEN"};
+    const char* labels[] = {"AUTO-SAVE",
+#ifdef CARDPUTER_ZERO
+        "METRONOME",
+#else
+        "LED MODE",
+#endif
+        "CONFIRM DEL", "BOOT", "SHAKE GEN"};
     const char* values[NUM_ITEMS];
 
     values[0] = _settings.autoSave ? "ON" : "OFF";
+#ifdef CARDPUTER_ZERO
+    static const char* ledNames[] = {"ON", "ON", "OFF"};
+#else
     static const char* ledNames[] = {"ON", "METRONOME", "OFF"};
+#endif
     values[1] = ledNames[_settings.ledMode];
     values[2] = _settings.confirmDelete ? "ON" : "OFF";
     values[3] = _settings.bootToProject ? "PROJ LIST" : "LAST PROJ";
